@@ -1,0 +1,75 @@
+/* 공통 토큰 — 바다 햇빛 아래, 50~60대 기준. 밝은 바탕 + 진한 글자 */
+:root {
+  --bg: #EEF2F5;          /* 흐린 하늘빛 회색 — 순백보다 눈부심이 덜함 */
+  --surface: #FFFFFF;
+  --text: #0E1A24;
+  --text-muted: #3D4B57;  /* 흐린 글자도 대비 7:1 이상 */
+  --border: #C5CFD8;
+  --primary: #0B3A5B;     /* 깊은 바다 남색 — 포인트 색은 이것 하나 */
+  --primary-press: #072A42;
+  --primary-soft: #DCE8F1;
+  --warn: #C2410C;        /* 부표 주황 */
+  --warn-soft: #FFF1E6;
+  --danger: #B91C1C;
+  --danger-soft: #FDECEC;
+  --success: #15803D;
+
+  --radius: 12px;
+  --gutter: 16px;
+  --btn-h: 60px;
+  --fs-body: 18px;
+  --fs-small: 16px;
+  --fs-title: 26px;
+  --fs-sub: 21px;
+
+  --font: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  letter-spacing: -0.015em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 700; line-height: 1.35; }
+h1 { font-size: var(--fs-title); }
+h2 { font-size: var(--fs-sub); }
+p { margin: 0; }
+
+button, input, select, textarea { font: inherit; color: inherit; letter-spacing: inherit; }
+
+:focus-visible { outline: 3px solid var(--warn); outline-offset: 2px; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+/* 버튼 3종: primary / secondary / ghost */
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: var(--btn-h); padding: 8px 16px;
+  border: 2px solid transparent; border-radius: var(--radius);
+  font-size: 20px; font-weight: 700; text-decoration: none; cursor: pointer;
+  user-select: none;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:active { background: var(--primary-press); }
+.btn-primary:disabled { background: #8FA3B3; cursor: default; }
+.btn-secondary { background: var(--surface); color: var(--primary); border-color: var(--primary); }
+.btn-secondary:active { background: var(--primary-soft); }
+.btn-ghost { background: transparent; color: var(--primary); min-height: 48px; font-weight: 500; text-decoration: underline; text-underline-offset: 4px; }
+.btn-danger { background: var(--surface); color: var(--danger); border-color: var(--danger); }
+.btn-danger:active { background: var(--danger-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

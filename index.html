@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>낚시배 승선명부</title>
+  <meta name="theme-color" content="#0B3A5B">
+  <link rel="icon" href="guest/icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="shared/base.css">
+  <style>
+    main { max-width: 560px; margin: 0 auto; padding: 48px 16px; display: grid; gap: 16px; }
+    p { color: var(--text-muted); }
+    .choice { display: grid; gap: 4px; padding: 20px 16px; background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; color: var(--text); }
+    .choice b { font-size: 22px; color: var(--primary); }
+    .choice span { color: var(--text-muted); }
+    .choice:active { background: var(--primary-soft); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>낚시배 승선명부</h1>
+    <p>누가 쓰시나요?</p>
+    <a class="choice" href="guest/"><b>배를 타는 손님</b><span>내 승선 QR을 만들어 폰에 저장합니다</span></a>
+    <a class="choice" href="captain/"><b>선장·사무실</b><span>손님 QR을 찍어 오늘 승선자명부를 만듭니다</span></a>
+  </main>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# 개발용 큰 파일·개인 설정
+*.y4m
+node_modules/
+.claude/settings.local.json
