@@ -155,6 +155,9 @@
             '<h2 class="section-title">앱 잠금 PIN</h2>' +
             '<p class="hint">' + (v.pinHash ? 'PIN이 켜져 있습니다. 앱을 열 때마다 PIN을 넣어야 합니다.' : '꺼져 있습니다. 폰을 다른 사람이 만질 수 있다면 켜 두세요.') + '</p>' +
             '<a class="btn btn-secondary" href="#/pin">' + (v.pinHash ? 'PIN 바꾸기·끄기' : 'PIN 켜기') + '</a>' +
+            '<h2 class="section-title">배에 붙일 안내문</h2>' +
+            '<p class="hint">선박명이 들어간 A4 안내문(손님용 QR + 사용법)을 인쇄합니다. 코팅해서 승선 입구에 붙이세요.</p>' +
+            '<a class="btn btn-secondary" href="poster.html">안내문 인쇄</a>' +
             '<h2 class="section-title">명부 보관 기간</h2>' +
             '<p class="hint">이 기간이 지난 명부는 앱을 열 때 이 폰에서 지웁니다. 컴퓨터로 보낸 파일은 그대로 남습니다.</p>' +
             '<div class="seg seg-4" id="retention">' + [1, 3, 6, 12].map(function (m) {
@@ -329,6 +332,14 @@
               '<a class="notice notice-warn notice-link" href="#/crew/new"><b>선장 정보가 없습니다.</b> 명부에 들어갈 선장 정보를 먼저 추가해 주세요 ›</a>') +
             (voyages.length ? '<ul class="voyage-list">' + voyages.map(function (v, i) { return voyageCard(v, lists[i]); }).join('') + '</ul>'
               : '<p class="empty-big">오늘 열린 항차가 없습니다.<br>출항 전에 항차를 열고 손님 QR을 찍으세요.</p>') +
+            '<a class="btn btn-secondary home-poster" href="poster.html">배에 붙일 안내문 인쇄</a>' +
+            '<details class="howto"' + (voyages.length ? '' : ' open') + '><summary>처음 쓰는 순서</summary><ol>' +
+              '<li><b>설정</b>에서 배 정보와 선장·선원을 넣습니다</li>' +
+              '<li><b>안내문 인쇄</b>로 QR 안내문을 뽑아 코팅해 배에 붙입니다</li>' +
+              '<li>출항 전 <b>항차 열기 → QR 스캔</b>으로 손님 QR을 찍습니다</li>' +
+              '<li>신분증을 보며 한 명씩 <b>신분증 확인</b>을 누르고 <b>명부 확정</b></li>' +
+              '<li><b>PDF·엑셀 보내기</b>로 카톡 PC·메일에 보내 보관합니다</li>' +
+            '</ol></details>' +
           '</section>' +
           '<div class="bottom-bar"><button class="btn btn-primary" id="open-voyage" type="button">' + next + '항차 열기</button></div>'
         );

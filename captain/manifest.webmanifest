@@ -1,6 +1,6 @@
 {
-  "name": "승선명부 — 선장용",
-  "short_name": "승선명부",
+  "name": "승선명부 선장",
+  "short_name": "승선명부 선장",
   "description": "손님 승선 QR을 찍어 오늘 항차 승선자명부를 만듭니다",
   "id": "./",
   "start_url": "./",
@@ -8,7 +8,7 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#EEF2F5",
-  "theme_color": "#0B3A5B",
+  "theme_color": "#C2410C",
   "lang": "ko",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },

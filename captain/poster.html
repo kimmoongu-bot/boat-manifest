@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>승선 QR 안내문</title>
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/base.css">
+  <style>
+    /* A4 세로 한 장. 비닐 코팅해도 읽히게: 굵고 큰 글씨, 흰 바탕에 검정, 얇은 선 없음 */
+    @page { size: A4 portrait; margin: 0; }
+    html, body { background: #D5DCE2; }
+    .tools { position: sticky; top: 0; z-index: 2; display: flex; gap: 8px; justify-content: center; padding: 12px 16px; background: #D5DCE2; }
+    .tools .btn { width: auto; min-width: 160px; }
+    .sheet {
+      width: 210mm; height: 297mm; margin: 0 auto 24px; padding: 16mm 15mm 12mm;
+      background: #fff; color: #000; display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .2);
+    }
+    .vessel { font-size: 26pt; font-weight: 700; color: var(--primary); line-height: 1.2; }
+    .vessel small { font-size: 15pt; font-weight: 500; color: #333; margin-left: 4mm; }
+    h1 { margin-top: 5mm; font-size: 40pt; line-height: 1.18; letter-spacing: -0.03em; }
+    .lead { margin-top: 4mm; font-size: 17pt; line-height: 1.45; color: #222; }
+    .qr-row { margin-top: 8mm; display: flex; align-items: center; gap: 8mm; }
+    .qr { flex: none; width: 84mm; height: 84mm; padding: 3mm; border: 1.6mm solid #000; border-radius: 4mm; background: #fff; }
+    .qr svg { display: block; width: 100%; height: 100%; }
+    .qr-side { font-size: 19pt; font-weight: 700; line-height: 1.35; }
+    .qr-side .arrow { display: block; font-size: 34pt; line-height: 1; margin-bottom: 3mm; color: var(--primary); }
+    .qr-side .url { display: block; margin-top: 5mm; font-size: 11.5pt; font-weight: 500; color: #333; word-break: break-all; }
+    .steps { list-style: none; margin: 7mm 0 0; padding: 0; display: grid; gap: 4mm; }
+    .steps li { display: flex; align-items: center; gap: 5mm; padding: 4mm 5mm; border: 0.9mm solid #000; border-radius: 4mm; }
+    .steps .n { flex: none; width: 15mm; height: 15mm; border-radius: 50%; background: #000; color: #fff; font-size: 22pt; font-weight: 700; display: grid; place-items: center; }
+    .steps b { display: block; font-size: 21pt; line-height: 1.25; }
+    .steps span { display: block; font-size: 13.5pt; color: #222; line-height: 1.4; }
+    .foot { margin-top: auto; padding-top: 5mm; font-size: 11pt; color: #333; line-height: 1.5; border-top: 0.6mm solid #000; }
+    .warn { display: none; margin: 0 auto 12px; max-width: 210mm; padding: 12px 16px; background: var(--warn-soft); border-left: 6px solid var(--warn); }
+    @media print {
+      html, body { background: #fff; }
+      .tools, .warn { display: none !important; }
+      .sheet { margin: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="tools">
+    <a class="btn btn-secondary" href="./#/settings">← 설정</a>
+    <button class="btn btn-primary" type="button" onclick="window.print()">인쇄하기</button>
+  </div>
+  <p class="warn" id="warn"></p>
+
+  <main class="sheet">
+    <p class="vessel"><span id="vname">낚시어선</span><small id="vnum"></small></p>
+    <h1>승선 전 QR을<br>준비해 주세요</h1>
+    <p class="lead">이 배는 종이 명부 대신 <b>폰 QR</b>로 승선자명부를 씁니다.<br>처음 한 번만 정보를 넣어 두면 다음부터는 화면만 보여 주시면 됩니다.</p>
+
+    <div class="qr-row">
+      <div class="qr" id="qr" role="img" aria-label="손님용 승선QR 주소"></div>
+      <p class="qr-side"><span class="arrow">◀</span>폰 카메라로<br>이 QR을 찍으세요<span class="url" id="url"></span></p>
+    </div>
+
+    <ol class="steps">
+      <li><span class="n">1</span><p><b>QR 찍기</b><span>폰 카메라를 켜고 위 QR에 대면 "승선QR" 화면이 열립니다</span></p></li>
+      <li><span class="n">2</span><p><b>내 정보 입력</b><span>성명·생년월일·주소·전화·비상연락처. 처음 한 번만, 이 폰에만 저장됩니다</span></p></li>
+      <li><span class="n">3</span><p><b>승선할 때 화면 보여 주기</b><span>내 승선 QR과 <b style="display:inline;font-size:inherit">신분증</b>을 선장님께 보여 주세요. 일행은 "동행자와 같이 타요"</span></p></li>
+    </ol>
+
+    <p class="foot">「낚시 관리 및 육성법」 제33조에 따라 승선자명부를 작성하고 신분증을 확인합니다. 주민등록번호와 신분증 사진은 받지 않습니다.
+      개인정보는 손님 폰과 이 배의 선장 기기에만 저장되고(서버 없음), 선장 기기에서는 3개월 뒤 지워집니다. 처리방침: <span id="purl"></span></p>
+  </main>
+
+  <script src="../vendor/qrcode.js"></script>
+  <script src="../shared/bmqr.js"></script>
+  <script src="db.js"></script>
+  <script>
+    (function () {
+      var guest = new URL('../guest/', location.href).href;
+      var privacy = new URL('../privacy.html', location.href).href;
+      document.getElementById('url').textContent = guest.replace(/^https?:\/\//, '');
+      document.getElementById('purl').textContent = privacy.replace(/^https?:\/\//, '');
+      // 코팅·얼룩에 강하게 오류 복원 Q
+      var q = qrcode(0, 'Q');
+      q.addData(guest, 'Byte');
+      q.make();
+      var n = q.getModuleCount(), m = 2, d = '';
+      for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (q.isDark(r, c)) d += 'M' + (c + m) + ' ' + (r + m) + 'h1v1h-1z';
+      document.getElementById('qr').innerHTML = '<svg viewBox="0 0 ' + (n + m * 2) + ' ' + (n + m * 2) + '" shape-rendering="crispEdges"><path d="' + d + '" fill="#000"/></svg>';
+      if (/^(localhost|127\.)/.test(location.hostname)) {
+        var w = document.getElementById('warn');
+        w.style.display = 'block';
+        w.textContent = '지금은 이 PC 주소(' + location.host + ')로 열려 있어 QR도 이 PC를 가리킵니다. 배에 붙일 안내문은 배포 주소에서 열어 인쇄하세요.';
+      }
+      DB.get('vessel', 'main').then(function (v) {
+        if (!v) return;
+        document.getElementById('vname').textContent = v.name;
+        document.getElementById('vnum').textContent = v.number || '';
+        document.title = v.name + ' 승선 QR 안내문';
+      }).catch(function () {});
+    })();
+  </script>
+</body>
+</html>

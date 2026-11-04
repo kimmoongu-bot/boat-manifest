@@ -242,6 +242,7 @@
       '</dl>' +
       '<p class="consent-note">주민등록번호와 신분증 사진은 받지 않습니다. 배에 탈 때 신분증 실물을 선장님께 보여 주세요.</p>' +
       '<p class="consent-note">동의하지 않을 수 있습니다. 이때는 승선할 때 선장님께 명부를 직접 작성해야 합니다.</p>' +
+      '<p class="consent-note"><a href="../privacy.html" target="_blank" rel="noopener">개인정보 처리방침 전문 보기</a></p>' +
       '<label class="check"><input type="checkbox" name="consent"' + (editing ? ' checked' : '') + '><span>위 내용을 읽고 동의합니다</span></label>' +
       '<p class="err" id="err-consent"></p>' +
     '</div>';

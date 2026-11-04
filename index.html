@@ -15,14 +15,31 @@
     .choice b { font-size: 22px; color: var(--primary); }
     .choice span { color: var(--text-muted); }
     .choice:active { background: var(--primary-soft); }
+    .choice-captain b { color: var(--warn); }
+    .howto { padding: 16px; background: var(--surface); border-radius: var(--radius); border-left: 6px solid var(--warn); }
+    .howto h2 { font-size: 19px; }
+    .howto ol { margin: 8px 0 0; padding-left: 24px; display: grid; gap: 6px; }
+    .foot { font-size: var(--fs-small); }
+    .foot a { color: var(--primary); }
   </style>
 </head>
 <body>
   <main>
     <h1>낚시배 승선명부</h1>
     <p>누가 쓰시나요?</p>
-    <a class="choice" href="guest/"><b>배를 타는 손님</b><span>내 승선 QR을 만들어 폰에 저장합니다</span></a>
-    <a class="choice" href="captain/"><b>선장·사무실</b><span>손님 QR을 찍어 오늘 승선자명부를 만듭니다</span></a>
+    <a class="choice" href="guest/"><b>배를 타는 손님 — 승선QR</b><span>내 승선 QR을 만들어 폰에 저장합니다</span></a>
+    <a class="choice choice-captain" href="captain/"><b>선장·사무실 — 승선명부 선장</b><span>손님 QR을 찍어 오늘 승선자명부를 만듭니다</span></a>
+    <section class="howto">
+      <h2>선장님, 처음 쓰는 순서</h2>
+      <ol>
+        <li>"승선명부 선장"을 열고 <b>설정</b>에서 배 정보와 선장·선원을 넣습니다</li>
+        <li><b>안내문 인쇄</b>로 손님용 QR 안내문을 뽑아 코팅해 배에 붙입니다</li>
+        <li>출항 전 <b>항차 열기 → QR 스캔</b>으로 손님 QR을 찍습니다</li>
+        <li>신분증을 보며 한 명씩 <b>신분증 확인</b>을 누르고 <b>명부 확정</b>을 누릅니다</li>
+        <li><b>PDF·엑셀 보내기</b>로 카톡 PC·메일에 보내 보관합니다</li>
+      </ol>
+    </section>
+    <p class="foot">개인정보는 손님 폰과 선장 기기에만 저장됩니다(서버 없음). <a href="privacy.html">개인정보 처리방침</a></p>
   </main>
 </body>
 </html>

@@ -1,6 +1,6 @@
 {
-  "name": "승선 QR — 낚시배 승선자명부",
-  "short_name": "승선 QR",
+  "name": "승선QR — 낚시배 탈 때 보여 주는 QR",
+  "short_name": "승선QR",
   "description": "낚시배 탈 때 선장님께 보여 주는 내 승선 QR",
   "id": "./",
   "start_url": "./",
