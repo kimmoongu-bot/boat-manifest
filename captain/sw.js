@@ -1,5 +1,5 @@
 /* 선장용 오프라인 캐시. 파일을 고치면 VERSION 을 올린다 */
-var VERSION = 'captain-v3';
+var VERSION = 'captain-v6';
 var FONT_CACHE = 'bm-fonts';
 var FILES = [
   './',
@@ -8,6 +8,10 @@ var FILES = [
   './db.js',
   './scanner.js',
   './scan-worker.js',
+  './rules.js',
+  './xlsx.js',
+  './font-subset.js',
+  './export.js',
   './style.css',
   './manifest.webmanifest',
   './icons/icon.svg',
@@ -19,7 +23,12 @@ var FILES = [
   '../shared/person-form.js',
   '../shared/bmqr.js',
   '../vendor/lz-string.min.js',
-  '../vendor/jsQR.js'
+  '../vendor/jsQR.js',
+  '../vendor/pdf-lib.min.js',
+  '../vendor/fontkit.umd.min.js',
+  '../vendor/hb-subset.wasm',
+  '../vendor/fonts/Pretendard-Regular.ttf',
+  '../vendor/fonts/Pretendard-Bold.ttf'
 ];
 
 self.addEventListener('install', function (e) {

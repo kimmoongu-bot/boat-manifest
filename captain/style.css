@@ -109,3 +109,43 @@
 .recent li.bad { border-left-color: var(--danger); }
 .recent li .num { color: var(--text-muted); font-weight: 500; margin-right: 8px; }
 .scan-file-result { position: fixed; left: 16px; right: 16px; bottom: calc(100px + env(safe-area-inset-bottom)); }
+
+/* ---------- 3단계: 신분증 확인 · 경고 · 확정 ---------- */
+.head-links { display: flex; gap: 8px; flex: none; }
+.badge { display: inline-block; margin-left: 8px; padding: 0 8px; border-radius: 6px; background: var(--primary-soft); color: var(--primary); font-size: 15px; font-weight: 700; line-height: 1.8; vertical-align: middle; }
+.badge-ok { background: #E3F4E8; color: var(--success); }
+.badge-warn { background: var(--warn-soft); color: var(--warn); }
+.text-warn { color: var(--warn); }
+.date-head { margin-top: 24px; font-size: 19px; }
+.screen > .voyage-list { margin-top: 8px; }
+
+.warn-box { padding: 12px 16px; background: var(--warn-soft); border-left: 6px solid var(--warn); border-radius: var(--radius); }
+.warn-box-title { font-weight: 700; color: var(--warn); }
+.warn-box ul { margin: 4px 0 0; padding-left: 20px; }
+.warn-box li { font-weight: 500; }
+.confirmed-box { padding: 12px 16px; background: #E3F4E8; border-left: 6px solid var(--success); border-radius: var(--radius); }
+.confirmed-box b { color: var(--success); }
+
+.row-pax { display: flex; align-items: stretch; gap: 12px; padding: 8px; }
+.row-body { flex: 1; display: grid; gap: 2px; padding: 4px 8px 4px 0; color: var(--text); text-decoration: none; min-width: 0; }
+.idcheck {
+  flex: none; width: 76px; min-height: 64px; border-radius: 10px; cursor: pointer;
+  border: 2px dashed var(--primary); background: var(--surface); color: var(--primary);
+  font-size: 15px; font-weight: 700; line-height: 1.3;
+}
+.idcheck.on { border-style: solid; background: var(--success); border-color: var(--success); color: #fff; font-size: 24px; display: grid; place-items: center; }
+.idcheck.on small { font-size: 14px; font-weight: 500; }
+.idcheck:disabled { cursor: default; }
+.idcheck:disabled:not(.on) { border-color: var(--border); color: var(--text-muted); }
+.idcheck-off { display: grid; place-items: center; border: 2px solid var(--border); color: var(--text-muted); }
+.row-pax.excluded { opacity: .55; }
+.row-pax.excluded b { text-decoration: line-through; }
+.warn-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.warn-tag { padding: 0 8px; border-radius: 6px; background: var(--warn-soft); color: var(--warn); font-size: 14px; font-weight: 700; line-height: 1.8; }
+.send-state { text-align: center; font-size: var(--fs-small); color: var(--text-muted); }
+.form-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 20px; }
+.form-fields:disabled input, .form-fields:disabled textarea { background: var(--bg); color: var(--text-muted); }
+.seg-4 { grid-template-columns: repeat(4, 1fr); margin-top: 12px; }
+.seg-4 .seg-item span { font-size: 18px; }
+.pin-dialog-input { width: 100%; min-height: 60px; margin-top: 12px; border: 2px solid var(--border); border-radius: var(--radius); }
+.danger-zone .btn + .hint + .btn { margin-top: 16px; }

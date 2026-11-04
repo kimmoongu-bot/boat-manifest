@@ -56,6 +56,15 @@
 - 항차 id = `YYYY-MM-DD_N`. 항차를 열 때 선장·선원 명단을 사본으로 넣고, 확정 전이면 설정에서 명단을 고칠 때 같이 바뀐다
 - 스캔: jsQR(웹 워커, `captain/scan-worker.js`)로 카메라 화면 가운데 정사각형을 0.12초마다 읽음. 같은 QR은 3초 안에 다시 보이면 무시(계속 비춰도 한 번)
 - 알림: 진동(안드로이드) + 소리(아이폰은 진동 API가 없어서). 소리는 "QR 스캔" 버튼을 누를 때 켜 둔다
+- 경고(`captain/rules.js`, 항차 날짜 기준): 정원 초과(제외한 사람 빼고 선원 포함), 14세 미만인데 같은 일행에 19세 이상이 없음, QR 만든 지 365일 넘음(직접 입력은 제외). 경고가 있어도 확정은 되지만 확인 창에 다시 보여 줌
+- 확정: 제외 안 한 승객 전원 신분증 확인이 끝나야 버튼이 켜짐. 확정하면 스캔·입력·수정 잠김. 풀기는 PIN(없으면 확인만). 다시 확정하면 "미전송"으로 돌아감
+- **PDF 한글**: pdf-lib + HarfBuzz(`vendor/hb-subset.wasm`, `captain/font-subset.js`)로 Pretendard TTF에서 쓴 글자만 남긴 글꼴을 만들어 통째로 심는다. 승객 5명 + 선원 2명 PDF 약 28KB
+  - pdf-lib 자체 `subset:true`(fontkit)는 **한글 대부분이 사라진다** — 쓰지 말 것
+  - 줄인 글꼴에서 GSUB·GPOS 를 뺀다. 남겨 두면 숫자 사이 '-' ':' 가 대체 글자로 바뀌는데 pdf-lib 가 그 너비를 안 적어 간격이 벌어진다
+- 엑셀: `captain/xlsx.js` 가 외부 라이브러리 없이 직접 만든다(zip 무압축). 이 PC의 실제 Excel로 열어 셀 내용 확인함
+- 공유: Web Share(파일)가 되면 공유, 안 되면 다운로드. 안드로이드 크롬은 .xlsx 공유를 막을 수 있어 그때는 PDF만 공유하고 엑셀은 다운로드("mixed")
+- 명단 합치기: 항차 화면 "명단 파일 보내기"(JSON, format `boat-manifest-voyage`) → 다른 기기 "명단 합치기". 겹치는 사람은 넣지 않고, 그쪽에서 신분증 확인했으면 시각만 가져옴
+- 자동 삭제: 앱을 열 때(잠금 푼 뒤) 보관 기간(설정, 기본 3개월)보다 오래된 항차를 건수·미전송 건수와 함께 알리고 지움. "나중에"를 누르면 다음에 열 때 다시 물음
 
 ## 개발 순서 — 단계마다 멈추고 보고, 삼월이가 확인하면 다음 단계
 1. 프로젝트 뼈대, CLAUDE.md, PWA 설정, 손님용 /guest/ 완성
@@ -82,9 +91,12 @@
 ```
 index.html          첫 화면(손님/선장 고르기)
 guest/              손님용 PWA (index.html, app.js, style.css, manifest, sw.js, 아이콘)
-captain/            선장용 PWA (app.js 화면, db.js IndexedDB, scanner.js 카메라·사진, scan-worker.js jsQR)
+captain/            선장용 PWA (app.js 화면, db.js IndexedDB, scanner.js 카메라·사진, scan-worker.js jsQR,
+                    rules.js 경고, export.js PDF·엑셀·명단 파일·공유, xlsx.js 엑셀 만들기, font-subset.js PDF 글꼴 줄이기)
 shared/             공용 코드 (bmqr.js QR 형식, person-form.js 입력칸·검사, ui.js 토스트·확인 창, base.css 토큰, ui.css 공용 부품)
-vendor/             외부 라이브러리 로컬 사본 (lz-string 1.5.0, qrcode-generator 1.4.4, jsQR 1.4.0)
+vendor/             외부 라이브러리 로컬 사본 (lz-string 1.5.0, qrcode-generator 1.4.4, jsQR 1.4.0, pdf-lib 1.17.1,
+                    @pdf-lib/fontkit 1.1.1, harfbuzzjs 1.6.4 의 hb-subset.wasm, fonts/Pretendard 1.3.9 Regular·Bold TTF)
+docs/screens/       단계별 확인 화면 캡처
 test-qr/            테스트용 손님 QR PNG
 tools/              개발용 스크립트 (serve.mjs 로컬 서버, make-test-qr, make-fake-camera, make-icons, test-people, check-qr-format)
 ```

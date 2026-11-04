@@ -29,13 +29,32 @@
     </form>
   </dialog>
 
+  <dialog id="pin-dialog" class="confirm">
+    <form method="dialog">
+      <h2 id="pin-dialog-title">PIN</h2>
+      <p>설정에서 정한 PIN을 넣어 주세요.</p>
+      <input id="pin-dialog-input" type="password" inputmode="numeric" maxlength="6" autocomplete="off" class="pin-input pin-dialog-input">
+      <p class="err" id="pin-dialog-err"></p>
+      <div class="confirm-actions">
+        <button class="btn btn-secondary" value="cancel">취소</button>
+        <button class="btn btn-primary" value="ok">확인</button>
+      </div>
+    </form>
+  </dialog>
+
   <noscript>이 화면은 자바스크립트가 켜져 있어야 동작합니다.</noscript>
   <script src="../vendor/lz-string.min.js"></script>
+  <script src="../vendor/pdf-lib.min.js"></script>
+  <script src="../vendor/fontkit.umd.min.js"></script>
   <script src="../shared/bmqr.js"></script>
   <script src="../shared/person-form.js"></script>
   <script src="../shared/ui.js"></script>
   <script src="db.js"></script>
   <script src="scanner.js"></script>
+  <script src="rules.js"></script>
+  <script src="xlsx.js"></script>
+  <script src="font-subset.js"></script>
+  <script src="export.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

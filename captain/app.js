@@ -1,4 +1,4 @@
-/* 선장용 승선명부 — 설정, 항차, 연속 스캔, 사진 불러오기, 수동 입력, 중복 처리 */
+/* 선장용 승선명부 — 설정, 항차, 연속 스캔, 사진 불러오기, 수동 입력, 중복 처리, 신분증 확인·경고·확정, 내보내기, 지난 명부, 합치기, 자동 삭제 */
 (function () {
   'use strict';
 
@@ -19,16 +19,58 @@
       vessel = v || null;
       if (vessel && vessel.pinHash && !unlocked) return renderLock();
       if (!vessel) return renderSettings(true);
+      if (!purgeChecked) return checkPurge().then(route);
       if (h === 'settings') return renderSettings(false);
       if (h === 'pin') return renderPin();
+      if (h === 'history') return renderHistory();
       if (h === 'crew/new') return renderCrewForm(null);
       var m;
       if ((m = /^crew\/(\d+)$/.exec(h))) return renderCrewForm(Number(m[1]));
-      if ((m = /^v\/([^/]+)\/scan$/.exec(h))) return withVoyage(m[1], renderScan);
-      if ((m = /^v\/([^/]+)\/manual$/.exec(h))) return withVoyage(m[1], renderManual);
+      if ((m = /^v\/([^/]+)\/scan$/.exec(h))) return withVoyage(m[1], editable(renderScan));
+      if ((m = /^v\/([^/]+)\/manual$/.exec(h))) return withVoyage(m[1], editable(renderManual));
+      if ((m = /^v\/([^/]+)\/p\/(\d+)$/.exec(h))) { var pid = Number(m[2]); return withVoyage(m[1], function (v) { return renderPerson(v, pid); }); }
       if ((m = /^v\/([^/]+)$/.exec(h))) return withVoyage(m[1], renderVoyage);
       return renderHome();
     }).catch(showDbError);
+  }
+
+  // 확정한 명부에서는 스캔·입력 화면을 열지 않는다
+  function editable(fn) {
+    return function (v) {
+      if (v.status === 'confirmed') { toast('확정한 명부입니다. 고치려면 먼저 확정을 푸세요'); go('#/v/' + encodeURIComponent(v.id)); return; }
+      return fn(v);
+    };
+  }
+
+  // ---------- 보관 기간 지난 명부 지우기 (앱을 열 때 한 번) ----------
+  var purgeChecked = false;
+  function cutoffDate(months) {
+    var d = new Date();
+    d.setMonth(d.getMonth() - months);
+    return d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1) + '-' + (d.getDate() < 10 ? '0' : '') + d.getDate();
+  }
+  function checkPurge() {
+    purgeChecked = true;
+    var months = vessel.retentionMonths || 3, cut = cutoffDate(months);
+    return DB.all('voyage').then(function (all) {
+      var old = all.filter(function (v) { return v.date < cut; });
+      if (!old.length) return;
+      return Promise.all(old.map(function (v) { return DB.passengers(v.id); })).then(function (lists) {
+        var pax = lists.reduce(function (s, l) { return s + l.length; }, 0);
+        var unsent = old.filter(function (v) { return v.status !== 'confirmed' || !v.sharedAt; }).length;
+        return UI.confirm(
+          '보관 기간(' + months + '개월)이 지난 명부 ' + old.length + '건을 지웁니다',
+          cut.replace(/-/g, '.') + ' 이전 명부 ' + old.length + '건(승객 ' + pax + '명)을 이 폰에서 지웁니다. 컴퓨터로 보낸 파일은 그대로 남습니다.' +
+            (unsent ? ' 그중 ' + unsent + '건은 아직 보내지 않았습니다. 먼저 보내려면 "나중에"를 누르고 지난 명부에서 보내세요.' : ''),
+          old.length + '건 지우기', 'danger', '나중에'
+        ).then(function (ok) {
+          if (!ok) return;
+          return Promise.all(old.map(function (v) { return DB.deleteVoyage(v.id); })).then(function () {
+            toast('지난 명부 ' + old.length + '건을 지웠습니다');
+          });
+        });
+      });
+    });
   }
   window.addEventListener('hashchange', function () { route(); window.scrollTo(0, 0); });
 
@@ -112,9 +154,20 @@
             '<a class="btn btn-secondary" href="#/crew/new">+ 선장·선원 추가</a>' +
             '<h2 class="section-title">앱 잠금 PIN</h2>' +
             '<p class="hint">' + (v.pinHash ? 'PIN이 켜져 있습니다. 앱을 열 때마다 PIN을 넣어야 합니다.' : '꺼져 있습니다. 폰을 다른 사람이 만질 수 있다면 켜 두세요.') + '</p>' +
-            '<a class="btn btn-secondary" href="#/pin">' + (v.pinHash ? 'PIN 바꾸기·끄기' : 'PIN 켜기') + '</a>') +
+            '<a class="btn btn-secondary" href="#/pin">' + (v.pinHash ? 'PIN 바꾸기·끄기' : 'PIN 켜기') + '</a>' +
+            '<h2 class="section-title">명부 보관 기간</h2>' +
+            '<p class="hint">이 기간이 지난 명부는 앱을 열 때 이 폰에서 지웁니다. 컴퓨터로 보낸 파일은 그대로 남습니다.</p>' +
+            '<div class="seg seg-4" id="retention">' + [1, 3, 6, 12].map(function (m) {
+              return '<label class="seg-item"><input type="radio" name="retention" value="' + m + '"' + ((v.retentionMonths || 3) === m ? ' checked' : '') + '><span>' + m + '개월</span></label>';
+            }).join('') + '</div>') +
         '</section>'
       );
+      app.querySelectorAll('input[name=retention]').forEach(function (r) {
+        r.addEventListener('change', function () {
+          vessel.retentionMonths = Number(r.value);
+          DB.put('vessel', vessel).then(function () { toast('보관 기간을 ' + r.value + '개월로 바꿨습니다'); });
+        });
+      });
       var f = document.getElementById('vform');
       PersonForm.bind(f);
       f.elements.capacity.addEventListener('input', function () { f.elements.capacity.value = f.elements.capacity.value.replace(/\D/g, ''); });
@@ -269,20 +322,12 @@
             '<header class="home-head">' +
               '<div><p class="vessel-name">' + esc(vessel.name) + '</p>' +
               '<p class="hint">' + esc(vessel.number) + ' · 정원 ' + vessel.capacity + '명 · ' + esc(vessel.deviceName) + '</p></div>' +
-              '<a class="head-link" href="#/settings">설정</a>' +
+              '<div class="head-links"><a class="head-link" href="#/history">지난 명부</a><a class="head-link" href="#/settings">설정</a></div>' +
             '</header>' +
             '<h1>' + fmtDate(today) + '</h1>' +
             (crew.some(function (c) { return c.role === '선장'; }) ? '' :
               '<a class="notice notice-warn notice-link" href="#/crew/new"><b>선장 정보가 없습니다.</b> 명부에 들어갈 선장 정보를 먼저 추가해 주세요 ›</a>') +
-            (voyages.length ? '<ul class="voyage-list">' + voyages.map(function (v, i) {
-              var total = lists[i].length + (v.crew || []).length;
-              var over = total > vessel.capacity;
-              return '<li><a class="voyage-card' + (over ? ' over' : '') + '" href="#/v/' + encodeURIComponent(v.id) + '">' +
-                '<span class="voyage-no">' + v.no + '항차</span>' +
-                '<span class="voyage-meta num">' + fmtTime(v.openedAt) + ' 열림</span>' +
-                '<span class="voyage-count num"><b>' + total + '</b> / ' + vessel.capacity + '명' + (over ? ' · 정원 초과' : '') + '</span>' +
-              '</a></li>';
-            }).join('') + '</ul>'
+            (voyages.length ? '<ul class="voyage-list">' + voyages.map(function (v, i) { return voyageCard(v, lists[i]); }).join('') + '</ul>'
               : '<p class="empty-big">오늘 열린 항차가 없습니다.<br>출항 전에 항차를 열고 손님 QR을 찍으세요.</p>') +
           '</section>' +
           '<div class="bottom-bar"><button class="btn btn-primary" id="open-voyage" type="button">' + next + '항차 열기</button></div>'
@@ -298,6 +343,18 @@
         });
       });
     });
+  }
+
+  function voyageCard(v, list, withDate) {
+    var res = Rules.check(vessel, v, list);
+    var state = v.status === 'confirmed'
+      ? (v.sharedAt ? '<span class="badge badge-ok">확정·보냄</span>' : '<span class="badge badge-warn">확정·미전송</span>')
+      : '<span class="badge">진행 중</span>';
+    return '<li><a class="voyage-card' + (res.over ? ' over' : '') + '" href="#/v/' + encodeURIComponent(v.id) + '">' +
+      '<span class="voyage-no">' + (withDate ? fmtDate(v.date).slice(5) + ' ' : '') + v.no + '항차 ' + state + '</span>' +
+      '<span class="voyage-meta num">' + fmtTime(v.openedAt) + ' 열림' + (res.items.length ? ' · ⚠ 경고 ' + res.items.length + '건' : '') + '</span>' +
+      '<span class="voyage-count num"><b>' + res.total + '</b> / ' + vessel.capacity + '명</span>' +
+    '</a></li>';
   }
 
   // ---------- 항차 명단 ----------
@@ -317,70 +374,347 @@
     return rows;
   }
 
-  var SOURCE = { camera: 'QR', image: '사진', manual: '직접' };
-  function personRow(p) {
-    var age = BMQR.age(p.birth);
-    return '<li class="row">' +
-      '<span class="row-main"><b>' + esc(p.name) + '</b>' +
-        '<span class="row-age num">' + (age == null ? '' : '만 ' + age + '세') + ' · ' + esc(p.sex) + '</span>' +
-        '<span class="tag">' + (SOURCE[p.source] || '') + '</span></span>' +
-      '<span class="row-sub num">' + fmtBirth(p.birth) + ' · ' + esc(p.phone) + '</span>' +
-    '</li>';
+  var SOURCE = { camera: 'QR', image: '사진', manual: '직접', merge: '합침' };
+  function personRow(v, p, res) {
+    var age = BMQR.age(p.birth, Rules.dateOf(v.date));
+    var warns = (res.byPerson[p.id] || []).map(function (k) { return '<span class="warn-tag">⚠ ' + Rules.LABEL[k] + '</span>'; }).join('');
+    var locked = v.status === 'confirmed';
+    var check = p.excluded ? '<span class="idcheck idcheck-off">제외</span>'
+      : '<button type="button" class="idcheck' + (p.idCheckedAt ? ' on' : '') + '" data-check="' + p.id + '"' + (locked ? ' disabled' : '') + ' aria-pressed="' + !!p.idCheckedAt + '">' +
+        (p.idCheckedAt ? '✓<small class="num">' + fmtTime(p.idCheckedAt) + '</small>' : '신분증<br>확인') + '</button>';
+    return '<li class="row row-pax' + (p.excluded ? ' excluded' : '') + '">' + check +
+      '<a class="row-body" href="#/v/' + encodeURIComponent(v.id) + '/p/' + p.id + '">' +
+        '<span class="row-main"><b>' + esc(p.name) + '</b>' +
+          '<span class="row-age num">' + (age == null ? '' : '만 ' + age + '세') + ' · ' + esc(p.sex) + '</span>' +
+          '<span class="tag">' + (p.excluded ? '승선 제외' : (SOURCE[p.source] || '')) + '</span></span>' +
+        '<span class="row-sub num">' + fmtBirth(p.birth) + ' · ' + esc(p.phone) + '</span>' +
+        (warns ? '<span class="warn-tags">' + warns + '</span>' : '') +
+      '</a></li>';
   }
 
-  function groupBlock(g) {
+  function groupBlock(v, g, res) {
     var rep = g.members[0];
     var more = g.members.length - 1;
     var missing = g.cnt - g.members.length;
     return '<li class="group">' +
       '<p class="group-title">대표자 <b>' + esc(rep.name) + '</b>' + (more > 0 ? ' 외 ' + more + '명' : '') + '</p>' +
-      (missing > 0 ? '<p class="group-missing">⚠ 일행 ' + g.cnt + '명 중 ' + g.members.length + '명 등록 — ' + missing + '명 더 찍어 주세요</p>' : '') +
-      '<ul class="rows">' + g.members.map(personRow).join('') + '</ul>' +
+      (missing > 0 && v.status !== 'confirmed' ? '<p class="group-missing">⚠ 일행 ' + g.cnt + '명 중 ' + g.members.length + '명 등록 — ' + missing + '명 더 찍어 주세요</p>' : '') +
+      '<ul class="rows">' + g.members.map(function (p) { return personRow(v, p, res); }).join('') + '</ul>' +
     '</li>';
   }
 
-  function countBar(v, n) {
-    var total = n + (v.crew || []).length;
-    var over = total > vessel.capacity;
-    return '<div class="count-bar' + (over ? ' over' : '') + '" id="count-bar">' +
-      '<p class="count-main num"><b id="count-total">' + total + '</b> / ' + vessel.capacity + '명</p>' +
-      '<p class="count-sub num">승객 <span id="count-pax">' + n + '</span>명 · 선장·선원 ' + (v.crew || []).length + '명' + (over ? ' · <b>정원 초과</b>' : '') + '</p>' +
+  function countBar(v, res, list) {
+    var pax = list.filter(function (p) { return !p.excluded; }).length;
+    return '<div class="count-bar' + (res.over ? ' over' : '') + '" id="count-bar">' +
+      '<p class="count-main num"><b id="count-total">' + res.total + '</b> / ' + vessel.capacity + '명</p>' +
+      '<p class="count-sub num">승객 ' + pax + '명 · 선장·선원 ' + (v.crew || []).length + '명' +
+        (list.length > pax ? ' · 제외 ' + (list.length - pax) + '명' : '') + (res.over ? ' · <b>정원 초과</b>' : '') + '</p>' +
     '</div>';
+  }
+
+  function warnBox(res) {
+    if (!res.items.length) return '';
+    return '<div class="warn-box"><p class="warn-box-title">⚠ 확인할 것 ' + res.items.length + '건</p><ul>' +
+      res.items.map(function (w) { return '<li>' + esc(w.text) + '</li>'; }).join('') + '</ul></div>';
   }
 
   function renderVoyage(v) {
     return DB.passengers(v.id).then(function (list) {
+      var res = Rules.check(vessel, v, list);
       var rows = buildRows(list);
+      var locked = v.status === 'confirmed';
+      var allChecked = res.needCheck > 0 && res.checked === res.needCheck;
+      var vid = encodeURIComponent(v.id);
       view(
         '<section class="screen">' +
           '<a class="back" href="#/">← 오늘 항차</a>' +
           '<h1>' + voyageTitle(v) + '</h1>' +
-          countBar(v, list.length) +
-          '<div class="actions">' +
-            '<button class="btn btn-primary btn-big" id="go-scan" type="button">QR 스캔</button>' +
-            '<div class="actions-row">' +
-              '<label class="btn btn-secondary file-btn">사진에서 QR<input type="file" accept="image/*" multiple id="file-in"></label>' +
-              '<a class="btn btn-secondary" href="#/v/' + encodeURIComponent(v.id) + '/manual">직접 입력</a>' +
+          (locked ? '<div class="confirmed-box"><p><b>✓ 명부 확정</b> <span class="num">' + Export.dateTime(v.confirmedAt) + '</span></p>' +
+            '<p class="hint">' + (v.sharedAt ? '보낸 시각 ' + Export.dateTime(v.sharedAt) : '<b class="text-warn">아직 보내지 않았습니다(미전송)</b>') + '</p></div>' : '') +
+          countBar(v, res, list) +
+          warnBox(res) +
+          (locked ? '' :
+            '<div class="actions">' +
+              '<button class="btn btn-primary btn-big" id="go-scan" type="button">QR 스캔</button>' +
+              '<div class="actions-row">' +
+                '<label class="btn btn-secondary file-btn">사진에서 QR<input type="file" accept="image/*" multiple id="file-in"></label>' +
+                '<a class="btn btn-secondary" href="#/v/' + vid + '/manual">직접 입력</a>' +
+              '</div>' +
             '</div>' +
-          '</div>' +
-          '<p class="file-result" id="file-result" hidden></p>' +
-          '<h2 class="section-title">승객 <span class="num">' + list.length + '</span>명</h2>' +
+            '<p class="file-result" id="file-result" hidden></p>') +
+          '<h2 class="section-title">승객 <span class="num">' + res.needCheck + '</span>명 · 신분증 확인 <span class="num" id="check-count">' + res.checked + '/' + res.needCheck + '</span></h2>' +
+          (locked ? '' : '<p class="hint">신분증 실물을 보고 왼쪽 버튼을 누르세요. 이름을 누르면 수정·승선 제외를 할 수 있습니다.</p>') +
           (list.length ? '<ul class="pax-list">' + rows.map(function (r) {
-            return r.group ? groupBlock(r) : '<li class="single"><ul class="rows">' + personRow(r.person) + '</ul></li>';
+            return r.group ? groupBlock(v, r, res) : '<li class="single"><ul class="rows">' + personRow(v, r.person, res) + '</ul></li>';
           }).join('') + '</ul>' : '<p class="empty">아직 등록된 승객이 없습니다. QR 스캔을 눌러 손님 QR을 찍으세요.</p>') +
           '<h2 class="section-title">선장·선원 <span class="num">' + (v.crew || []).length + '</span>명</h2>' +
-          '<p class="hint">설정의 명단이 자동으로 들어갑니다.</p>' +
+          '<p class="hint">명부 맨 위에 자동으로 들어갑니다.</p>' +
           ((v.crew || []).length ? '<ul class="rows">' + v.crew.map(function (c) {
             return '<li class="row"><span class="row-main"><b>' + esc(c.name) + '</b><span class="tag">' + esc(c.role) + '</span></span>' +
               '<span class="row-sub num">' + fmtBirth(c.birth) + ' · ' + esc(c.phone) + '</span></li>';
           }).join('') + '</ul>' : '<a class="notice notice-warn notice-link" href="#/crew/new">선장·선원이 없습니다. 설정에서 추가해 주세요 ›</a>') +
-        '</section>'
+          '<h2 class="section-title">여러 기기로 나눠 찍을 때</h2>' +
+          '<p class="hint">다른 폰에서 "명단 파일 보내기"로 받은 파일을 여기서 불러오면 겹치는 사람 없이 합쳐집니다.</p>' +
+          '<div class="actions-row">' +
+            '<button class="btn btn-secondary" id="json-out" type="button">명단 파일 보내기</button>' +
+            (locked ? '' : '<label class="btn btn-secondary file-btn">명단 합치기<input type="file" accept=".json,application/json" id="json-in"></label>') +
+          '</div>' +
+          (locked ? '<div class="danger-zone"><button class="btn btn-secondary" id="unlock" type="button">확정 풀기 (PIN)</button>' +
+            '<p class="hint">고칠 것이 있을 때만 푸세요. 다시 확정하면 새로 보내야 합니다.</p></div>' : '') +
+        '</section>' +
+        '<div class="bottom-bar">' +
+          (locked
+            ? '<button class="btn btn-primary" id="send" type="button">PDF·엑셀 보내기</button><p class="send-state" id="send-state" hidden></p>'
+            : '<button class="btn btn-primary" id="confirm-btn" type="button"' + (allChecked ? '' : ' disabled') + '>' +
+                (allChecked ? '명부 확정' : res.needCheck ? '신분증 확인 ' + res.checked + '/' + res.needCheck + ' — 모두 확인하면 확정' : '승객을 먼저 등록하세요') + '</button>') +
+        '</div>'
       );
-      document.getElementById('go-scan').addEventListener('click', function () {
-        Scanner.unlockSound();   // 소리는 버튼을 누를 때 켜 둬야 난다
-        go('#/v/' + encodeURIComponent(v.id) + '/scan');
+
+      // 신분증 확인 켜고 끄기
+      app.querySelectorAll('[data-check]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var p = list.filter(function (x) { return x.id === Number(b.getAttribute('data-check')); })[0];
+          if (!p) return;
+          p.idCheckedAt = p.idCheckedAt ? null : Date.now();
+          DB.put('passenger', p).then(function () {
+            if (p.idCheckedAt) Scanner.feedback('ok');
+            var y = window.scrollY;
+            renderVoyage(v).then(function () { window.scrollTo(0, y); });
+          });
+        });
       });
-      bindFileInput(v, document.getElementById('file-in'), document.getElementById('file-result'), function () { return renderVoyage(v); });
+
+      var scanBtn = document.getElementById('go-scan');
+      if (scanBtn) scanBtn.addEventListener('click', function () {
+        Scanner.unlockSound();   // 소리는 버튼을 누를 때 켜 둬야 난다
+        go('#/v/' + vid + '/scan');
+      });
+      var fileIn = document.getElementById('file-in');
+      if (fileIn) bindFileInput(v, fileIn, document.getElementById('file-result'), function () { return renderVoyage(v); });
+
+      var cb = document.getElementById('confirm-btn');
+      if (cb) cb.addEventListener('click', function () {
+        var body = res.items.length
+          ? '경고 ' + res.items.length + '건이 있습니다: ' + res.items.map(function (w) { return w.text; }).join(' / ') + '. 그래도 확정하면 수정이 잠깁니다.'
+          : '승객 ' + res.needCheck + '명, 선장·선원 ' + (v.crew || []).length + '명으로 명부를 확정합니다. 확정하면 수정이 잠깁니다.';
+        UI.confirm(res.items.length ? '경고가 있습니다. 확정할까요?' : '명부를 확정할까요?', body, '확정', 'primary').then(function (ok) {
+          if (!ok) return;
+          v.status = 'confirmed'; v.confirmedAt = Date.now(); v.sharedAt = null;
+          DB.put('voyage', v).then(function () { toast('명부를 확정했습니다'); renderVoyage(v); window.scrollTo(0, 0); });
+        });
+      });
+
+      var ub = document.getElementById('unlock');
+      if (ub) ub.addEventListener('click', function () {
+        askPin('확정 풀기').then(function (ok) {
+          if (!ok) return;
+          v.status = 'open'; v.confirmedAt = null; v.sharedAt = null;
+          DB.put('voyage', v).then(function () { toast('확정을 풀었습니다. 고친 뒤 다시 확정하세요'); renderVoyage(v); });
+        });
+      });
+
+      // 확정한 명부는 파일을 미리 만들어 둔다(공유는 버튼을 누른 직후에만 허락되므로)
+      if (locked) {
+        var ready = buildFiles(v, list);
+        var sb = document.getElementById('send'), st = document.getElementById('send-state');
+        ready.then(function (files) {
+          st.hidden = false;
+          st.textContent = files.map(function (f) { return f.name.split('.').pop().toUpperCase() + ' ' + kb(f.data.length); }).join(' · ') + ' 준비됨';
+        }, function () { st.hidden = false; st.textContent = '파일을 만들지 못했습니다. 다시 열어 주세요'; });
+        sb.addEventListener('click', function () {
+          sb.disabled = true;
+          ready.then(function (files) {
+            return Export.deliver(files, voyageTitle(v) + ' 승선자명부').then(function (how) {
+              if (how === 'cancelled') { toast('보내기를 취소했습니다'); return; }
+              v.sharedAt = Date.now();
+              return DB.put('voyage', v).then(function () {
+                toast(how === 'shared' ? '보냈습니다' : how === 'mixed' ? 'PDF는 보냈고 엑셀은 다운로드 폴더에 저장했습니다' : '다운로드 폴더에 저장했습니다');
+                renderVoyage(v);
+              });
+            });
+          }).catch(function () { toast('파일을 만들지 못했습니다. 다시 눌러 주세요', true); }).then(function () { sb.disabled = false; });
+        });
+      }
+
+      document.getElementById('json-out').addEventListener('click', function () {
+        var name = Export.fileBase(vessel, v) + '_' + (vessel.deviceName || '기기').replace(/\s+/g, '') + '.json';
+        Export.deliver([{ name: name, type: 'application/json', data: new TextEncoder().encode(Export.voyageJson(vessel, v, list)) }], voyageTitle(v) + ' 명단 파일')
+          .then(function (how) { if (how !== 'cancelled') toast('명단 파일을 보냈습니다'); });
+      });
+      var ji = document.getElementById('json-in');
+      if (ji) ji.addEventListener('change', function () {
+        var f = ji.files && ji.files[0];
+        ji.value = '';
+        if (f) f.text().then(function (t) { return mergeFile(v, t); }).catch(function () { toast('명단 파일을 읽지 못했습니다. 이 앱에서 보낸 .json 파일인지 확인해 주세요', true); });
+      });
+    });
+  }
+
+  function kb(n) { return n < 1024 ? n + 'B' : (n / 1024).toFixed(n < 10240 ? 1 : 0) + 'KB'; }
+
+  function buildFiles(v, list) {
+    var base = Export.fileBase(vessel, v);
+    return Export.pdf(vessel, v, list).then(function (pdf) {
+      return [
+        { name: base + '.pdf', type: Export.PDF_MIME, data: pdf },
+        { name: base + '.xlsx', type: Xlsx.MIME, data: Export.xlsx(vessel, v, list) }
+      ];
+    });
+  }
+
+  // PIN 이 있으면 PIN 을 묻고, 없으면 확인만 받는다
+  function askPin(title) {
+    if (!vessel.pinHash) {
+      return UI.confirm(title, 'PIN이 설정되어 있지 않아 바로 풉니다. 설정에서 PIN을 켜 두면 다른 사람이 풀 수 없습니다.', '풀기', 'primary');
+    }
+    var dlg = document.getElementById('pin-dialog'), input = document.getElementById('pin-dialog-input'), err = document.getElementById('pin-dialog-err');
+    document.getElementById('pin-dialog-title').textContent = title;
+    input.value = ''; err.textContent = '';
+    return new Promise(function (resolve) {
+      function done(v) { dlg.removeEventListener('click', onClick); if (dlg.open) dlg.close(); resolve(v); }
+      function onClick(e) {
+        var b = e.target.closest('button');
+        if (!b) return;
+        e.preventDefault();
+        if (b.value !== 'ok') return done(false);
+        hashPin(input.value, vessel.pinSalt).then(function (h) {
+          if (h === vessel.pinHash) done(true);
+          else { err.textContent = '⚠ PIN이 맞지 않습니다'; input.value = ''; input.focus(); }
+        });
+      }
+      dlg.addEventListener('click', onClick);
+      dlg.showModal();
+      input.focus();
+    });
+  }
+
+  // 다른 기기 명단 파일 합치기: 겹치는 사람은 넣지 않고, 그쪽에서 신분증 확인했으면 확인 시각만 가져온다
+  function mergeFile(v, text) {
+    var d = Export.parseVoyageJson(text);
+    var same = d.voyage.date === v.date && Number(d.voyage.no) === v.no;
+    var ask = same ? Promise.resolve(true) : UI.confirm('다른 항차의 파일입니다',
+      '파일은 ' + fmtDate(d.voyage.date) + ' ' + d.voyage.no + '항차(' + (d.device || '다른 기기') + '), 지금 화면은 ' + voyageTitle(v) + '입니다. 그래도 합칠까요?', '합치기', 'primary');
+    return ask.then(function (ok) {
+      if (!ok) return;
+      var added = 0, dup = 0, checked = 0;
+      return d.passengers.reduce(function (pr, q) {
+        return pr.then(function () {
+          if (!q || !q.name || !/^\d{4}-\d{2}-\d{2}$/.test(q.birth || '')) return;
+          var p = Object.assign({}, q, { voyageId: v.id, source: 'merge', device: q.device || d.device || '', addedAt: q.addedAt || Date.now() });
+          return DB.addPassenger(p).then(function (r) {
+            if (r.added) { added++; return; }
+            dup++;
+            var ex = r.dup;
+            if (!ex.idCheckedAt && q.idCheckedAt) { ex.idCheckedAt = q.idCheckedAt; checked++; return DB.put('passenger', ex); }
+          });
+        });
+      }, Promise.resolve()).then(function () {
+        toast('합쳤습니다: ' + added + '명 추가, ' + dup + '명은 이미 있음' + (checked ? ', 신분증 확인 ' + checked + '명 가져옴' : ''));
+        return renderVoyage(v);
+      });
+    });
+  }
+
+  // ---------- 승객 한 명: 수정 · 승선 제외 · 지우기 ----------
+  function renderPerson(v, pid) {
+    return DB.get('passenger', pid).then(function (p) {
+      if (!p || p.voyageId !== v.id) { go('#/v/' + encodeURIComponent(v.id)); return; }
+      return DB.passengers(v.id).then(function (list) {
+        var res = Rules.check(vessel, v, list);
+        var locked = v.status === 'confirmed';
+        var back = '#/v/' + encodeURIComponent(v.id);
+        var warns = res.items.filter(function (w) { return w.pid === p.id; });
+        view(
+          '<section class="screen">' +
+            '<a class="back" href="' + back + '">← ' + v.no + '항차 명단</a>' +
+            '<h1>' + esc(p.name) + (p.excluded ? ' <span class="tag">승선 제외</span>' : '') + '</h1>' +
+            '<p class="hint">' + (SOURCE[p.source] || '') + '로 등록 · ' + fmtTime(p.addedAt) + (p.device ? ' · ' + esc(p.device) : '') +
+              (p.made ? ' · QR 만든 날 ' + p.made.replace(/-/g, '.') : '') + (p.grp ? ' · 일행 ' + p.idx + '/' + p.cnt : '') + '</p>' +
+            (warns.length ? '<div class="warn-box"><ul>' + warns.map(function (w) { return '<li>' + esc(w.text) + '</li>'; }).join('') + '</ul></div>' : '') +
+            '<p class="notice">' + (p.idCheckedAt ? '✓ 신분증 확인 <b class="num">' + Export.dateTime(p.idCheckedAt) + '</b>' : '아직 신분증을 확인하지 않았습니다') + '</p>' +
+            (locked ? '<p class="notice notice-warn">확정한 명부라 고칠 수 없습니다. 명단 화면 아래 "확정 풀기"를 먼저 하세요.</p>' : '') +
+            '<form id="eform" class="form" novalidate>' +
+              '<fieldset class="form-fields"' + (locked ? ' disabled' : '') + '>' +
+                PersonForm.fieldsHtml(p, { auto: false, phoneHint: '휴대전화가 없으면 보호자 번호를 적어 주세요' }) +
+              '</fieldset>' +
+              (locked ? '' : '<div class="bottom-bar"><button class="btn btn-primary" type="submit">수정 저장</button></div>') +
+            '</form>' +
+            (locked ? '' :
+              '<div class="danger-zone">' +
+                '<button class="btn btn-secondary" id="exclude" type="button">' + (p.excluded ? '승선 제외 취소' : '승선 제외 (이번 배에 안 탐)') + '</button>' +
+                '<p class="hint">제외하면 인원과 명부에서 빠지고, 화면에는 흐리게 남습니다.</p>' +
+                '<button class="btn btn-danger" id="remove" type="button">명단에서 지우기 (잘못 찍음)</button>' +
+              '</div>') +
+          '</section>'
+        );
+        if (locked) return;
+        var f = document.getElementById('eform');
+        PersonForm.bind(f);
+        f.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var d = PersonForm.read(f);
+          if (PersonForm.showErrors(f, PersonForm.validate(d, { mobileOnly: false }))) { toast('빠진 항목을 채워 주세요'); return; }
+          DB.updatePassenger(Object.assign(p, d)).then(function (r) {
+            if (r.dup) { PersonForm.setErr('name', '같은 성명·생년월일·전화번호의 승객이 이미 있습니다'); return; }
+            toast('수정했습니다');
+            go(back);
+          });
+        });
+        document.getElementById('exclude').addEventListener('click', function () {
+          p.excluded = !p.excluded;
+          DB.put('passenger', p).then(function () { toast(p.excluded ? p.name + ' 님을 승선 제외했습니다' : '승선 제외를 취소했습니다'); go(back); });
+        });
+        document.getElementById('remove').addEventListener('click', function () {
+          UI.confirm(p.name + ' 님을 명단에서 지울까요?', '잘못 찍은 사람을 지웁니다. 되돌릴 수 없습니다. 다시 넣으려면 QR을 다시 찍으세요.', '지우기').then(function (ok) {
+            if (!ok) return;
+            DB.del('passenger', p.id).then(function () { toast('지웠습니다'); go(back); });
+          });
+        });
+      });
+    });
+  }
+
+  // ---------- 지난 명부 ----------
+  function monthOf(ymd) { return ymd.slice(0, 7); }
+  function renderHistory() {
+    return DB.all('voyage').then(function (all) {
+      all.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.no - a.no; });
+      return Promise.all(all.map(function (v) { return DB.passengers(v.id); })).then(function (lists) {
+        var thisMonth = monthOf(BMQR.today());
+        var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
+        var lastMonth = d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1);
+        var unsent = all.filter(function (v) { return v.status === 'confirmed' && !v.sharedAt; }).length;
+        var html = '', curDate = '';
+        all.forEach(function (v, i) {
+          if (v.date !== curDate) { if (curDate) html += '</ul>'; curDate = v.date; html += '<h2 class="date-head">' + fmtDate(v.date) + '</h2><ul class="voyage-list">'; }
+          html += voyageCard(v, lists[i]);
+        });
+        if (curDate) html += '</ul>';
+        view(
+          '<section class="screen">' +
+            '<a class="back" href="#/">← 오늘 항차</a>' +
+            '<h1>지난 명부</h1>' +
+            '<p class="hint">보관 기간 ' + (vessel.retentionMonths || 3) + '개월. 지난 명부는 앱을 열 때 지웁니다.' + (unsent ? ' <b class="text-warn">미전송 ' + unsent + '건</b>' : '') + '</p>' +
+            '<div class="actions-row">' +
+              '<button class="btn btn-secondary" type="button" data-month="' + thisMonth + '">이번 달 전체 엑셀</button>' +
+              '<button class="btn btn-secondary" type="button" data-month="' + lastMonth + '">지난달 전체 엑셀</button>' +
+            '</div>' +
+            (all.length ? html : '<p class="empty-big">아직 명부가 없습니다.</p>') +
+          '</section>'
+        );
+        app.querySelectorAll('[data-month]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            var m = b.getAttribute('data-month');
+            var items = all.map(function (v, i) { return { voyage: v, passengers: lists[i] }; })
+              .filter(function (it) { return monthOf(it.voyage.date) === m && it.voyage.status === 'confirmed'; })
+              .sort(function (a, c) { return a.voyage.date < c.voyage.date ? -1 : a.voyage.date > c.voyage.date ? 1 : a.voyage.no - c.voyage.no; });
+            if (!items.length) { toast(m.replace('-', '년 ') + '월에 확정한 명부가 없습니다'); return; }
+            var name = (m + '_전체_' + vessel.name).replace(/[\\\/:*?"<>|\s]+/g, '_') + '.xlsx';
+            Export.deliver([{ name: name, type: Xlsx.MIME, data: Export.monthXlsx(vessel, m, items) }], m + ' 승선자명부')
+              .then(function (how) { if (how !== 'cancelled') toast(items.length + '개 항차를 엑셀 한 파일로 ' + (how === 'shared' ? '보냈습니다' : '저장했습니다')); });
+          });
+        });
+      });
     });
   }
 

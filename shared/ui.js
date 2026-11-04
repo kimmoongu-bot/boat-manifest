@@ -13,13 +13,14 @@
     toastTimer = setTimeout(function () { t.hidden = true; }, isError ? 6000 : 1500);
   }
 
-  // okKind: 'danger'(기본) | 'primary'
-  function confirm(title, body, okLabel, okKind) {
+  // okKind: 'danger'(기본) | 'primary', cancelLabel: 기본 '취소'
+  function confirm(title, body, okLabel, okKind, cancelLabel) {
     var dlg = document.getElementById('confirm');
     var ok = document.getElementById('confirm-ok');
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-body').textContent = body;
     ok.textContent = okLabel;
+    dlg.querySelector('button[value=cancel]').textContent = cancelLabel || '취소';
     ok.className = 'btn ' + (okKind === 'primary' ? 'btn-primary' : 'btn-danger');
     return new Promise(function (resolve) {
       if (typeof dlg.showModal !== 'function') { resolve(root.confirm(title + '\n\n' + body)); return; }

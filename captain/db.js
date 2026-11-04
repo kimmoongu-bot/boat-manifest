@@ -1,9 +1,10 @@
 /* 선장 앱 저장소 (IndexedDB) — 테이블: vessel, crew, voyage, passenger
  * vessel   : { id:'main', name, number, capacity, deviceName, pinSalt, pinHash }
  * crew     : { id(자동), role:'선장'|'선원', name, birth, sex, addr, phone, order }
- * voyage   : { id:'YYYY-MM-DD_N', date, no, openedAt, status:'open', deviceName, crew:[선장·선원 사본] }
+ * voyage   : { id:'YYYY-MM-DD_N', date, no, openedAt, status:'open'|'confirmed', confirmedAt, sharedAt, deviceName, crew:[선장·선원 사본] }
  * passenger: { id(자동), voyageId, key(성명|생년월일|전화), name, birth, sex, addr, phone, emerName, emerPhone,
- *              grp, idx, cnt, made, source:'camera'|'image'|'manual', addedAt, device }
+ *              grp, idx, cnt, made, source:'camera'|'image'|'manual'|'merge', addedAt, device,
+ *              idCheckedAt(신분증 확인 시각, 없으면 null), excluded(승선 제외) }
  */
 (function (root) {
   'use strict';
@@ -107,9 +108,33 @@
     });
   }
 
+  // 정보를 고치면 같은 사람 판단 키도 다시 만든다. 다른 승객과 겹치면 {dup:true}
+  function updatePassenger(p) {
+    p.key = BMQR.personKey(p);
+    return tx('passenger', 'readwrite', function (t) {
+      var s = t.objectStore('passenger');
+      return wrap(s.index('voyageKey').get([p.voyageId, p.key])).then(function (found) {
+        if (found && found.id !== p.id) return { dup: found };
+        return wrap(s.put(p)).then(function () { return { saved: p }; });
+      });
+    });
+  }
+
+  // 항차와 그 승객을 함께 지운다
+  function deleteVoyage(id) {
+    return tx(['voyage', 'passenger'], 'readwrite', function (t) {
+      var ps = t.objectStore('passenger');
+      t.objectStore('voyage').delete(id);
+      return wrap(ps.index('voyageId').getAllKeys(id)).then(function (keys) {
+        keys.forEach(function (k) { ps.delete(k); });
+        return keys.length;
+      });
+    });
+  }
+
   root.DB = {
     open: open, get: get, put: put, del: del, all: all, byIndex: byIndex,
-    addPassenger: addPassenger, passengers: passengers, crewList: crewList,
-    openVoyage: openVoyage, refreshOpenVoyageCrew: refreshOpenVoyageCrew
+    addPassenger: addPassenger, updatePassenger: updatePassenger, passengers: passengers, crewList: crewList,
+    openVoyage: openVoyage, refreshOpenVoyageCrew: refreshOpenVoyageCrew, deleteVoyage: deleteVoyage
   };
 })(window);

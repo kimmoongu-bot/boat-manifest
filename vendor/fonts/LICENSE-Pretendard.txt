@@ -1,0 +1,3 @@
+Pretendard 1.3.9 (Pretendard-Regular.ttf, Pretendard-Bold.ttf)
+https://github.com/orioncactus/pretendard
+SIL Open Font License 1.1 — 앱 안에 넣어 쓰고 PDF에 일부 글자를 심는 것 허용
