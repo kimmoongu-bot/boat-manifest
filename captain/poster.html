@@ -26,7 +26,7 @@
     .qr svg { display: block; width: 100%; height: 100%; }
     .qr-side { font-size: 19pt; font-weight: 700; line-height: 1.35; }
     .qr-side .arrow { display: block; font-size: 34pt; line-height: 1; margin-bottom: 3mm; color: var(--primary); }
-    .qr-side .url { display: block; margin-top: 5mm; font-size: 11.5pt; font-weight: 500; color: #333; word-break: break-all; }
+    .qr-side .url { display: block; margin-top: 5mm; font-size: 11.5pt; font-weight: 500; color: #333; word-break: normal; overflow-wrap: normal; }
     .steps { list-style: none; margin: 7mm 0 0; padding: 0; display: grid; gap: 4mm; }
     .steps li { display: flex; align-items: center; gap: 5mm; padding: 4mm 5mm; border: 0.9mm solid #000; border-radius: 4mm; }
     .steps .n { flex: none; width: 15mm; height: 15mm; border-radius: 50%; background: #000; color: #fff; font-size: 22pt; font-weight: 700; display: grid; place-items: center; }
@@ -75,7 +75,12 @@
     (function () {
       var guest = new URL('../guest/', location.href).href;
       var privacy = new URL('../privacy.html', location.href).href;
-      document.getElementById('url').textContent = guest.replace(/^https?:\/\//, '');
+      // 주소는 '/' 뒤에서만 줄을 바꾼다(낱말 중간에서 끊기지 않게)
+      guest.replace(/^https?:\/\//, '').split('/').forEach(function (part, i, all) {
+        var el = document.getElementById('url');
+        el.appendChild(document.createTextNode(part + (i < all.length - 1 ? '/' : '')));
+        if (i < all.length - 1) el.appendChild(document.createElement('wbr'));
+      });
       document.getElementById('purl').textContent = privacy.replace(/^https?:\/\//, '');
       // 코팅·얼룩에 강하게 오류 복원 Q
       var q = qrcode(0, 'Q');

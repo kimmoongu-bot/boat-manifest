@@ -1,14 +1,17 @@
 # 낚시배 승선명부 — 할 일
 
-## 다음 세션 시작점 (2026-11-04)
-📋 다음: GitHub 저장소 kimmoongu-bot/boat-manifest 만들기 → push → Pages 켜기 → 배포 주소 테스트
+## 다음 세션 시작점 (2026-11-09)
+📋 다음: 실제 폰 최종 점검(아래 9줄, 폰이 빌 때 삼월이가) → 점검에서 나온 것 고치기
 
-- 4단계 진행 중 — 멈춘 곳: 저장소 만들기. 앱 안 브라우저는 GitHub 로그인이 안 돼 있음(비밀번호는 Claude 가 넣지 않음)
-  - 삼월이가 고를 것: ① 평소 크롬(Claude in Chrome, GitHub 로그인돼 있으면)으로 Claude 가 만들기 ② 앱 안 브라우저에 삼월이가 직접 로그인
-  - push 는 이 PC의 git 저장 로그인(credential manager)으로 됨. 아직 원격(origin) 없음, 로컬 커밋 48dc1e0 까지
-- 4단계에서 끝난 것(로컬 커밋됨): 아이콘·이름 구분(승선QR 남색 / 승선명부 선장 주황), 배 안내문 A4(captain/poster.html, 선박명 자동·QR·3단계), 개인정보 처리방침(privacy.html, 동의 화면 링크), 처음 쓰는 순서 5줄, CLAUDE.md "문서는 편집 도구로만" 규칙
-- 배포 뒤 남은 것: 배포 주소에서 손님 QR → 선장 가짜 카메라 스캔 → 확정 → PDF 다운로드 / 오프라인 / 안내문 인쇄 미리보기 캡처(배포 주소 QR로) / 보고·커밋·push
-- 배포 주소(예정): https://kimmoongu-bot.github.io/boat-manifest/ (손님 /guest/, 선장 /captain/)
+- 4단계 끝: GitHub Pages 배포 완료
+  - 배포 주소: https://kimmoongu-bot.github.io/boat-manifest/
+  - 손님용(승선QR): https://kimmoongu-bot.github.io/boat-manifest/guest/
+  - 선장용(승선명부 선장): https://kimmoongu-bot.github.io/boat-manifest/captain/
+  - 안내문 인쇄: 선장 앱 "안내문 인쇄" 버튼(captain/poster.html) — 배포 주소에서 열어야 QR이 배포 주소를 가리킴
+  - 저장소 https://github.com/kimmoongu-bot/boat-manifest (Public), Pages: main / (root), .nojekyll
+- 배포 주소에서 확인(PC 헤드리스 크롬): 손님 QR 생성 → 선장 가짜 카메라로 5명 스캔 → 신분증 확인 → 확정 → PDF·엑셀 다운로드 / manifest·sw 범위가 /boat-manifest/guest/·/captain/ 로 맞음 / 두 앱 오프라인 열림 / 안내문 A4 1쪽, QR이 손님 주소로 읽힘
+- 바꾸고 올리는 법: 고친 뒤 sw.js VERSION 올리기 → 커밋 → git push → 1분쯤 뒤 반영
+- 4단계에서 만든 것: 아이콘·이름 구분(승선QR 남색 / 승선명부 선장 주황), 배 안내문 A4, 개인정보 처리방침(privacy.html), 처음 쓰는 순서 5줄
 
 - 3단계 끝: 신분증 확인(시각 기록), 승선 제외·지우기·정보 수정, 경고 3종, 명부 확정·잠금·PIN 풀기, PDF·엑셀 보내기(안 되면 다운로드), 지난 명부(미전송 표시·월 전체 엑셀), 명단 합치기(JSON), 자동 삭제(건수 안내)
 - PDF 한글: pdf-lib + HarfBuzz 로 쓴 글자만 남긴 Pretendard 를 심음(약 28KB). pdf-lib 자체 subset 은 한글이 사라져서 안 씀. 자세한 건 CLAUDE.md
@@ -23,9 +26,9 @@
 3. 설정 → 항차 열기 → "QR 스캔" → 카메라 허용 → PC 모니터의 QR 5장을 차례로 비춤 (같은 QR을 오래 비춰도 1번만 등록되는지, 진동·소리)
 4. 다른 폰에 손님 QR(`/guest/`)을 만들어 실제 폰 화면 → 폰 카메라로 찍기, 밝은 곳(창가)에서도 시험
 
-## 실제 폰 최종 점검 (배포 뒤, 폰이 빌 때 삼월이가)
-1. 폰 크롬으로 배포 주소 /guest/ → 정보 입력 → "홈 화면에 추가" → 아이콘·이름 "승선QR" 확인
-2. 다른 폰(선장)에 /captain/ 설치 → 아이콘·이름 "승선명부 선장" 확인, 배 정보·선장 입력
+## 실제 폰 최종 점검 (폰이 빌 때 삼월이가 — adb 필요 없음, 배포 주소로)
+1. 손님 폰 크롬으로 https://kimmoongu-bot.github.io/boat-manifest/guest/ → 정보 입력 → "홈 화면에 추가" → 아이콘·이름 "승선QR" 확인
+2. 선장 폰에 https://kimmoongu-bot.github.io/boat-manifest/captain/ 설치 → 아이콘·이름 "승선명부 선장" 확인, 배 정보·선장 입력
 3. 선장 폰 "QR 스캔"으로 손님 폰 화면 QR 찍기 — 진동·소리·이름 표시, 계속 비춰도 1번만 등록
 4. 야외 햇빛 아래(손님 화면 밝기 최대)에서 같은 스캔, 거리 20~40cm·각도 바꿔 보기
 5. 코팅한 안내문 QR을 일반 카메라로 찍어 /guest/ 가 열리는지
@@ -38,4 +41,5 @@
 - [x] 1단계: 뼈대, CLAUDE.md, PWA, 손님용 /guest/
 - [x] 2단계: 선장용 설정, 항차, 연속 스캔, 수동 입력, 중복 처리
 - [x] 3단계: 신분증 확인, 경고, 확정 잠금, PDF/엑셀, 지난 명부, 명단 합치기, 자동 삭제
-- [ ] 4단계: GitHub Pages 배포, 사용 안내 페이지(배에 붙일 안내 QR)
+- [x] 4단계: GitHub Pages 배포, 사용 안내 페이지(배에 붙일 안내 QR)
+- [ ] 실제 폰 최종 점검

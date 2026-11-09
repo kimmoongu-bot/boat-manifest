@@ -12,6 +12,10 @@
 
 - 근거 법: 「낚시 관리 및 육성법」 제33조 — 승선자명부 작성, 신분증 대조 의무, 미작성·신분증 제시 거부 시 승선 거부 의무
 - 배포: GitHub Pages (계정 kimmoongu-bot). **서버·DB 없음**
+  - 저장소 https://github.com/kimmoongu-bot/boat-manifest , Pages main / (root), Jekyll 끔(.nojekyll)
+  - 주소: https://kimmoongu-bot.github.io/boat-manifest/ (손님 guest/, 선장 captain/, 처리방침 privacy.html)
+  - 모든 경로는 상대 경로(./, ../)라 /boat-manifest/ 아래에서 그대로 동작. 절대 경로(/로 시작) 쓰지 말 것
+  - 올리기: sw.js VERSION 올리기 → 커밋 → git push (이 PC git 저장 로그인으로 됨)
 - 화면 두 개: `/guest/`(손님용), `/captain/`(선장용). 둘 다 설치형 PWA, 오프라인 동작(service worker 캐시)
 - 프레임워크 없음. 정적 HTML + JS. 라이브러리는 `vendor/` 에 로컬로 둔다(항구에서 인터넷 안 될 수 있음)
 - 화면 작업 시 `.claude/skills/` 의 frontend-design, korean-mobile-ui 스킬을 따른다
