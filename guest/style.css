@@ -1,4 +1,12 @@
 /* 손님용 화면 */
+/* QR 비밀번호 */
+.pin-input { letter-spacing: .5em; text-align: center; font-size: 28px !important; font-variant-numeric: tabular-nums; }
+.pin-big { font-size: 36px !important; min-height: 72px !important; }
+.lock { padding-top: calc(48px + env(safe-area-inset-top)); }
+.lock .btn-ghost { margin-top: 24px; }
+/* 저장 안 될 때 이유를 버튼 바로 위에 */
+.form-errors { margin: 0 0 4px; padding: 8px 12px; border-radius: var(--radius); background: var(--danger-soft); color: var(--danger); font-weight: 700; font-size: var(--fs-small); }
+.form-errors[hidden] { display: none; }
 /* ---------- 처음 화면 ---------- */
 .welcome { padding-top: calc(32px + env(safe-area-inset-top)); }
 .welcome h1 { font-size: 28px; margin-top: 24px; }

@@ -1,6 +1,6 @@
 {
-  "name": "승선명부 선장",
-  "short_name": "승선명부 선장",
+  "name": "승선명부",
+  "short_name": "승선명부",
   "description": "손님 승선 QR을 찍어 오늘 항차 승선자명부를 만듭니다",
   "id": "./",
   "start_url": "./",

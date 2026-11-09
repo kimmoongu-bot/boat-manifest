@@ -105,6 +105,8 @@
     keepAwake(false);
     var h = location.hash.replace(/^#\/?/, '');
     if (!state.me && h !== 'me/new') return renderWelcome();
+    if (state.me && !state.pin) return renderSetPin();
+    if (state.me && !unlocked) return renderLock();
     if (h === 'me/new' || h === 'me/edit') return renderPersonForm({ kind: 'me' });
     if (h === 'group') return renderGroup();
     if (h === 'group/qr') return renderGroupQR();
@@ -159,8 +161,10 @@
           : '같이 타는 사람의 정보입니다. 이 사람 몫의 QR이 따로 한 장 만들어집니다.') + '</p>' +
         '<form id="pform" class="form" novalidate>' +
           PersonForm.fieldsHtml(p, { auto: isMe, phoneHint: isMe ? '' : '휴대전화가 없는 어린이는 보호자 번호를 적어 주세요' }) +
-          (isMe ? consentBlock(editing) : companionChecks(p, editing)) +
-          '<div class="bottom-bar bottom-bar-inline"><button class="btn btn-primary" type="submit">' +
+          (isMe ? pinBlock(editing) + consentBlock(editing) : companionChecks(p, editing)) +
+          '<div class="bottom-bar bottom-bar-inline">' +
+            '<p class="form-errors" id="form-errors" role="alert" hidden></p>' +
+            '<button class="btn btn-primary" type="submit">' +
             (isMe ? (editing ? '저장하고 QR 다시 만들기' : '저장하고 QR 만들기') : (editing ? '저장' : '동행자 추가')) +
           '</button></div>' +
         '</form>' +
@@ -174,22 +178,41 @@
     var form = document.getElementById('pform');
     PersonForm.bind(form);
 
+    var summary = document.getElementById('form-errors');
+    if (isMe) form.addEventListener('input', function (e) {
+      if (e.target.name === 'pin1' || e.target.name === 'pin2') e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+    });
+
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var data = PersonForm.read(form);
       var errs = PersonForm.validate(data, { mobileOnly: isMe });
       if (!isMe && !form.elements.consent.checked) errs.consent = '동행자에게 알리고 동의를 받았는지 체크해 주세요';
       if (isMe && !form.elements.consent.checked) errs.consent = '동의해야 QR을 만들 수 있습니다';
+      var pin = isMe ? form.elements.pin1.value : '';
+      if (isMe && (!editing || pin || form.elements.pin2.value)) {
+        if (!/^\d{4}$/.test(pin)) errs.pin1 = '숫자 4자리로 넣어 주세요';
+        else if (pin !== form.elements.pin2.value) errs.pin2 = '두 번 넣은 비밀번호가 다릅니다';
+      }
       if (PersonForm.showErrors(form, errs)) {
-        toast('빠진 항목을 채워 주세요', false);
+        // 무엇 때문에 저장이 안 됐는지 저장 버튼 바로 위에 남겨 둔다(토스트는 금방 사라져서 못 보는 경우가 있음)
+        summary.hidden = false;
+        summary.textContent = '⚠ 저장되지 않았습니다. 빨간 칸을 확인해 주세요: ' +
+          Object.keys(errs).map(function (k) { return FIELD_LABEL[k] || k; }).join(', ');
+        toast('빠진 항목을 채워 주세요', true);
         return;
       }
+      summary.hidden = true;
       data.made = BMQR.today();
       if (isMe) {
-        state.me = data;
-        if (!save()) return;
-        toast(editing ? '저장했습니다. QR을 새로 만들었습니다' : 'QR을 만들었습니다');
-        go('#/');
+        (pin ? hashPin(pin) : Promise.resolve(null)).then(function (newPin) {
+          state.me = data;
+          if (newPin) state.pin = newPin;
+          if (!save()) return;
+          unlocked = true;
+          toast(editing ? '저장했습니다. QR을 새로 만들었습니다' : 'QR을 만들었습니다');
+          go('#/');
+        }).catch(function () { toast('비밀번호를 저장하지 못했습니다. 다시 눌러 주세요', true); });
       } else {
         var keep = form.elements.keep.checked;
         if (opt.id) {
@@ -228,6 +251,108 @@
           toast('지웠습니다');
           go('#/group');
         }
+      });
+    });
+  }
+
+  var FIELD_LABEL = {
+    name: '성명', birth: '생년월일', sex: '성별', addr: '주소', phone: '휴대전화', emerName: '비상연락처 이름',
+    emerPhone: '비상연락처 번호', consent: '동의 체크', pin1: 'QR 비밀번호', pin2: '비밀번호 한 번 더'
+  };
+
+  function pinBlock(editing) {
+    var pinInput = function (name) {
+      return '<input id="f-' + name + '" name="' + name + '" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" class="pin-input">';
+    };
+    return '<fieldset class="group-box"><legend>QR 비밀번호</legend>' +
+      '<p class="hint">' + (editing ? '바꿀 때만 넣으세요. 비워 두면 지금 비밀번호 그대로입니다.'
+        : 'QR을 열 때 넣는 숫자 4자리입니다. 폰을 다른 사람이 봐도 내 정보가 보이지 않게 합니다. 잊으면 정보를 지우고 다시 만들어야 합니다.') + '</p>' +
+      PersonForm.field('pin1', editing ? '새 비밀번호 (숫자 4자리)' : '비밀번호 (숫자 4자리)', pinInput('pin1')) +
+      PersonForm.field('pin2', '비밀번호 한 번 더', pinInput('pin2')) +
+    '</fieldset>';
+  }
+
+  // ---------- QR 비밀번호 ----------
+  var unlocked = false;   // 비밀번호를 넣었는지 (앱을 새로 열거나 1분 넘게 다른 앱에 있으면 다시 잠김)
+  var hiddenAt = 0;
+  function toHex(buf) {
+    return Array.prototype.map.call(new Uint8Array(buf), function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('');
+  }
+  function hashPin(pin, salt) {
+    if (!salt) { var a = new Uint8Array(16); crypto.getRandomValues(a); salt = toHex(a); }
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + pin)).then(function (h) {
+      return { salt: salt, hash: toHex(h) };
+    });
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+    if (state.pin && unlocked && hiddenAt && Date.now() - hiddenAt > 60000) { unlocked = false; route(); }
+  });
+
+  function renderLock() {
+    view(
+      '<section class="screen lock">' +
+        '<h1>승선QR</h1>' +
+        '<p class="lead">' + esc(state.me.name) + ' 님, QR 비밀번호 4자리를 넣어 주세요.</p>' +
+        '<form id="lockf" class="form" novalidate>' +
+          PersonForm.field('pin', '비밀번호', '<input id="f-pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" class="pin-input pin-big">') +
+          '<button class="btn btn-primary" type="submit">QR 열기</button>' +
+        '</form>' +
+        '<button class="btn btn-ghost" type="button" id="forgot">비밀번호를 잊었어요</button>' +
+      '</section>'
+    );
+    var f = document.getElementById('lockf'), input = document.getElementById('f-pin');
+    input.focus();
+    function check() {
+      hashPin(input.value, state.pin.salt).then(function (h) {
+        if (h.hash === state.pin.hash) { unlocked = true; route(); }
+        else { PersonForm.setErr('pin', '비밀번호가 맞지 않습니다. 다시 넣어 주세요'); input.value = ''; input.focus(); }
+      });
+    }
+    input.addEventListener('input', function () {
+      input.value = input.value.replace(/\D/g, '').slice(0, 4);
+      PersonForm.setErr('pin', '');
+      if (input.value.length === 4) check();   // 4자리를 다 넣으면 바로 연다
+    });
+    f.addEventListener('submit', function (e) { e.preventDefault(); check(); });
+    document.getElementById('forgot').addEventListener('click', function () {
+      confirmDialog('비밀번호를 잊으셨나요?', '비밀번호는 되찾을 수 없습니다. 이 폰에 저장된 내 정보와 동행자 정보를 모두 지우고 처음부터 다시 만들어야 합니다.', '모두 지우고 다시 만들기').then(function (ok) {
+        if (!ok) return;
+        localStorage.removeItem(KEY);
+        state = load();
+        unlocked = false;
+        toast('정보를 지웠습니다. 다시 만들어 주세요');
+        go('#/me/new');
+        route();
+      });
+    });
+  }
+
+  // 비밀번호 기능 전에 만든 정보: 한 번만 비밀번호를 정하게 한다
+  function renderSetPin() {
+    view(
+      '<section class="screen lock">' +
+        '<h1>QR 비밀번호 정하기</h1>' +
+        '<p class="lead">이제 QR을 열 때 숫자 4자리 비밀번호를 넣습니다. 폰을 다른 사람이 봐도 내 정보가 보이지 않게 합니다.</p>' +
+        '<form id="setf" class="form" novalidate>' + pinBlock(false).replace(/<p class="hint">[^<]*<\/p>/, '') +
+          '<button class="btn btn-primary" type="submit">비밀번호 저장</button>' +
+        '</form>' +
+      '</section>'
+    );
+    var f = document.getElementById('setf');
+    f.addEventListener('input', function (e) { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4); PersonForm.setErr(e.target.name, ''); });
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var p1 = f.elements.pin1.value, errs = {};
+      if (!/^\d{4}$/.test(p1)) errs.pin1 = '숫자 4자리로 넣어 주세요';
+      else if (p1 !== f.elements.pin2.value) errs.pin2 = '두 번 넣은 비밀번호가 다릅니다';
+      if (PersonForm.showErrors(f, errs)) return;
+      hashPin(p1).then(function (h) {
+        state.pin = h;
+        if (!save()) return;
+        unlocked = true;
+        toast('비밀번호를 정했습니다');
+        route();
       });
     });
   }

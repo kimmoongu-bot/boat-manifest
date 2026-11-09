@@ -1,12 +1,18 @@
 # 낚시배 승선명부 — 할 일
 
 ## 다음 세션 시작점 (2026-11-09)
-📋 다음: 실제 폰 최종 점검(아래 9줄, 폰이 빌 때 삼월이가) → 점검에서 나온 것 고치기
+📋 다음: 삼월이 폰에서 손님 저장 다시 해 보기(저장 안 되면 버튼 위 빨간 안내 문구 확인) → 실제 폰 최종 점검(아래 9줄)
 
+- 11-09 고친 것(삼월이 폰 첫 사용 뒤)
+  - 손님 "저장 안 됨" 신고: PC에서 실제 터치·키 입력으로는 저장 정상 → 입력 검사에 걸렸는데 안내(1.5초 토스트)를 못 본 것으로 보임.
+    저장이 안 되면 이유("⚠ 저장되지 않았습니다. 빨간 칸을 확인해 주세요: …")를 저장 버튼 바로 위에 계속 보이게 함
+  - 손님 QR 비밀번호(숫자 4자리): 정보 입력 때 정함 → 앱을 열 때·다른 앱에 1분 넘게 있다 돌아올 때 잠금. 4자리 넣으면 바로 열림.
+    비밀번호는 해시(SHA-256+salt)로만 저장. "비밀번호를 잊었어요" → 정보 지우고 다시 만들기. 비밀번호 전에 만든 정보는 처음 열 때 정하게 함
+  - 이름: 손님용 "승선QR"(그대로), 선장용 "승선명부 선장" → "승선명부"
 - 4단계 끝: GitHub Pages 배포 완료
   - 배포 주소: https://kimmoongu-bot.github.io/boat-manifest/
   - 손님용(승선QR): https://kimmoongu-bot.github.io/boat-manifest/guest/
-  - 선장용(승선명부 선장): https://kimmoongu-bot.github.io/boat-manifest/captain/
+  - 선장용(승선명부): https://kimmoongu-bot.github.io/boat-manifest/captain/
   - 안내문 인쇄: 선장 앱 "안내문 인쇄" 버튼(captain/poster.html) — 배포 주소에서 열어야 QR이 배포 주소를 가리킴
   - 저장소 https://github.com/kimmoongu-bot/boat-manifest (Public), Pages: main / (root), .nojekyll
 - 배포 주소에서 확인(PC 헤드리스 크롬): 손님 QR 생성 → 선장 가짜 카메라로 5명 스캔 → 신분증 확인 → 확정 → PDF·엑셀 다운로드 / manifest·sw 범위가 /boat-manifest/guest/·/captain/ 로 맞음 / 두 앱 오프라인 열림 / 안내문 A4 1쪽, QR이 손님 주소로 읽힘
@@ -28,7 +34,7 @@
 
 ## 실제 폰 최종 점검 (폰이 빌 때 삼월이가 — adb 필요 없음, 배포 주소로)
 1. 손님 폰 크롬으로 https://kimmoongu-bot.github.io/boat-manifest/guest/ → 정보 입력 → "홈 화면에 추가" → 아이콘·이름 "승선QR" 확인
-2. 선장 폰에 https://kimmoongu-bot.github.io/boat-manifest/captain/ 설치 → 아이콘·이름 "승선명부 선장" 확인, 배 정보·선장 입력
+2. 선장 폰에 https://kimmoongu-bot.github.io/boat-manifest/captain/ 설치 → 아이콘·이름 "승선명부"(주황) 확인, 배 정보·선장 입력
 3. 선장 폰 "QR 스캔"으로 손님 폰 화면 QR 찍기 — 진동·소리·이름 표시, 계속 비춰도 1번만 등록
 4. 야외 햇빛 아래(손님 화면 밝기 최대)에서 같은 스캔, 거리 20~40cm·각도 바꿔 보기
 5. 코팅한 안내문 QR을 일반 카메라로 찍어 /guest/ 가 열리는지
