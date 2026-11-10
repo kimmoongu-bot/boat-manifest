@@ -219,8 +219,8 @@
             '<a class="back" href="#/settings">← 설정</a>' +
             '<h1>' + (c ? '선장·선원 정보' : '선장·선원 추가') + '</h1>' +
             '<form id="cform" class="form" novalidate>' +
-              '<fieldset class="field" id="wrap-role"><legend>구분</legend><div class="seg">' +
-                ['선장', '선원'].map(function (r) {
+              '<fieldset class="field" id="wrap-role"><legend>구분</legend><div class="seg seg-3">' +
+                ['선장', '사무장', '선원'].map(function (r) {
                   return '<label class="seg-item"><input type="radio" name="role" value="' + r + '"' + (p.role === r ? ' checked' : '') + '><span>' + r + '</span></label>';
                 }).join('') +
               '</div><p class="err" id="err-role"></p></fieldset>' +
@@ -241,7 +241,10 @@
           d.role = f.elements.role.value;
           d.license = f.elements.license.value.trim();
           var errs = PersonForm.validate(Object.assign({ emerName: '', emerPhone: '' }, d), { emergency: false });
-          if (d.role !== '선장' && d.role !== '선원') errs.role = '구분을 골라 주세요';
+          if (['선장', '사무장', '선원'].indexOf(d.role) < 0) errs.role = '구분을 골라 주세요';
+          else if (d.role !== '선원' && crew.some(function (x) { return x.role === d.role && (!c || x.id !== c.id); })) {
+            errs.role = d.role + '은 한 명만 둘 수 있습니다. 이미 있는 ' + d.role + ' 정보를 고쳐 주세요';
+          }
           if (PersonForm.showErrors(f, errs)) return;
           var rec = Object.assign(c || { order: Date.now() }, d);
           DB.put('crew', rec).then(function () {

@@ -1,6 +1,6 @@
 /* 선장 앱 저장소 (IndexedDB) — 테이블: vessel, crew, voyage, passenger
  * vessel   : { id:'main', name, number, capacity, deviceName, pinSalt, pinHash }
- * crew     : { id(자동), role:'선장'|'선원', name, birth, sex, addr, phone, license(해기사 면허·선원수첩 번호, 선택), order }
+ * crew     : { id(자동), role:'선장'|'사무장'|'선원', name, birth, sex, addr, phone, license(해기사 면허·선원수첩 번호, 선택), order }
  * voyage   : { id:'YYYY-MM-DD_N', date, no, openedAt, status:'open'|'confirmed', confirmedAt, sharedAt, deviceName, crew:[선장·선원 사본] }
  * passenger: { id(자동), voyageId, key(성명|생년월일|전화), name, birth, sex, addr, phone, emerName, emerPhone,
  *              grp, idx, cnt, made, source:'camera'|'image'|'manual'|'merge', addedAt, device,
@@ -79,10 +79,12 @@
     });
   }
 
+  // 명부 순서: 선장(1번) → 사무장(있으면 2번) → 선원 → 승객
+  function roleRank(r) { return r === '선장' ? 0 : r === '사무장' ? 1 : 2; }
   function crewList() {
     return all('crew').then(function (list) {
       return list.sort(function (a, b) {
-        if (a.role !== b.role) return a.role === '선장' ? -1 : 1;
+        if (a.role !== b.role) return roleRank(a.role) - roleRank(b.role);
         return (a.order || 0) - (b.order || 0) || a.id - b.id;
       });
     });
@@ -134,7 +136,7 @@
 
   root.DB = {
     open: open, get: get, put: put, del: del, all: all, byIndex: byIndex,
-    addPassenger: addPassenger, updatePassenger: updatePassenger, passengers: passengers, crewList: crewList,
+    addPassenger: addPassenger, updatePassenger: updatePassenger, passengers: passengers, crewList: crewList, roleRank: roleRank,
     openVoyage: openVoyage, refreshOpenVoyageCrew: refreshOpenVoyageCrew, deleteVoyage: deleteVoyage
   };
 })(window);

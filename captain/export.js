@@ -31,10 +31,13 @@
   }
   function hm(ts) { var d = new Date(ts); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
 
-  // 명부 한 장의 줄: 선장·선원이 맨 위, 그다음 승객(제외한 사람은 빼고, 일행끼리 붙여서)
+  // 명부 한 장의 줄: 선장(1번) → 사무장(있으면 2번) → 선원 → 승객(제외한 사람은 빼고, 일행끼리 붙여서)
+  function roleRank(r) { return r === '선장' ? 0 : r === '사무장' ? 1 : 2; }
   function manifestRows(voyage, passengers) {
     var rows = [], n = 0;
-    (voyage.crew || []).forEach(function (c) {
+    (voyage.crew || []).map(function (c, i) { return { c: c, i: i }; })
+      .sort(function (a, b) { return roleRank(a.c.role) - roleRank(b.c.role) || a.i - b.i; })
+      .forEach(function (x) { var c = x.c;
       rows.push({ no: ++n, kind: c.role, name: c.name, birth: c.birth, sex: c.sex, addr: c.addr, phone: c.phone, license: c.license || '',
         emer: '-', group: '-', idcheck: '-' });
     });
@@ -116,21 +119,29 @@
 
   // 법정 서식(낚시 관리 및 육성법 시행규칙 별지 제16호서식) 칸 순서 — PDF 전용. 일행·신분증 확인 같은 앱 정보는 엑셀에만
   var FORM_COLUMNS = [
-    { header: '성명', w: 54, get: function (r) { return r.name; } },
-    { header: '생년월일', w: 56, get: function (r) { return String(r.birth || '').replace(/-/g, '.'); } },
+    { header: '번호', w: 24, get: function (r) { return String(r.no); }, center: true },
+    { header: '성명', w: 50, get: function (r) { return r.name; } },
+    { header: '생년월일', w: 54, get: function (r) { return String(r.birth || '').replace(/-/g, '.'); } },
     { header: '성별', w: 26, get: function (r) { return r.sex; } },
-    { header: '주소', w: 158, get: function (r) { return r.addr; } },
+    { header: '주소', w: 140, get: function (r) { return r.addr; } },
     { header: '전화번호 (휴대전화)', w: 78, get: function (r) { return r.phone; } },
     { header: '비상연락처 (직계가족 등 휴대전화)', w: 87, get: function (r) { return r.kind === '승객' ? r.emer : ''; } },
-    { header: '비고 (선원 또는 승객)', w: 80, get: function (r) { return r.kind === '승객' ? '승객' : '선원' + (r.license ? ' / ' + r.license : ''); } }
+    { header: '비고 (선원 또는 승객)', w: 80, get: function (r) { return r.kind === '승객' ? '승객' : (r.kind === '선원' ? '선원' : '선원(' + r.kind + ')') + (r.license ? ' / ' + r.license : ''); } }
   ];
   function formDate(ymd) {
     var p = String(ymd || '').split('-');
     return p.length === 3 ? p[0] + '년 ' + p[1] + '월 ' + p[2] + '일' : '';
   }
+  // 서식 위쪽: 배 이름·번호, 승선일, 승선인원(정원은 선장이 처음 넣은 배 정보)
+  function formHead(vessel, voyage, passengers) {
+    var pax = passengers.filter(function (p) { return !p.excluded; }).length, crew = (voyage.crew || []).length;
+    return [
+      ['선박명: ' + vessel.name, '선박번호: ' + vessel.number],
+      ['승선일: ' + formDate(voyage.date) + ' (' + voyage.no + '항차)', '승선인원: ' + (pax + crew) + '명 (선원 ' + crew + '명, 승객 ' + pax + '명) / 정원 ' + vessel.capacity + '명']
+    ];
+  }
   function formInfo(vessel, voyage) {
-    return '선박명 ' + vessel.name + ' (' + vessel.number + ') · ' + voyage.no + '항차' +
-      (voyage.confirmedAt ? ' · 명부 확정 ' + dateTime(voyage.confirmedAt) : ' · 확정 전');
+    return voyage.confirmedAt ? '명부 확정 ' + dateTime(voyage.confirmedAt) : '확정 전';
   }
 
   function pdf(vessel, voyage, passengers) {
@@ -141,7 +152,8 @@
         doc.setTitle(fileBase(vessel, voyage));
         doc.setCreator('승선명부 앱');
         // 명부에 쓰는 글자를 모두 모아 그 글자만 남긴 글꼴을 만든 뒤 통째로 심는다
-        var text = ['승선자 명부', '승선일: ' + formDate(voyage.date), formInfo(vessel, voyage), FOOT, '(이어서) — / 0123456789.:']
+        var text = ['승선자 명부 선원() 사무장 선장', formInfo(vessel, voyage), FOOT, '(이어서) — / 0123456789.:']
+          .concat([].concat.apply([], formHead(vessel, voyage, passengers)))
           .concat(FORM_COLUMNS.map(function (c) { return c.header; }))
           .concat(manifestRows(voyage, passengers).map(function (r) { return FORM_COLUMNS.map(function (c) { return c.get(r); }).join(' '); }))
           .join(' ');
@@ -161,7 +173,7 @@
     var ink = L.rgb(0, 0, 0), line = L.rgb(0.25, 0.25, 0.25), head = L.rgb(0.92, 0.92, 0.92), muted = L.rgb(0.35, 0.35, 0.35);
     var rows = manifestRows(voyage, passengers);
     var TW = FORM_COLUMNS.reduce(function (a, c) { return a + c.w; }, 0), X0 = (W - TW) / 2;
-    var title = '승선자 명부', dateLine = '승선일: ' + formDate(voyage.date);
+    var title = '승선자 명부', headLines = formHead(vessel, voyage, passengers);
     var pages = [], page, y;
     var headCells = FORM_COLUMNS.map(function (c) { return wrap(c.header, bold, HSIZE, c.w - PAD * 2); });
     var headH = Math.max.apply(null, headCells.map(function (c) { return c.length; })) * LH + PAD * 2 + 2;
@@ -173,11 +185,15 @@
       if (pages.length === 1) {
         var tw = bold.widthOfTextAtSize(title, 18);
         page.drawText(title, { x: (W - tw) / 2, y: y - 18, size: 18, font: bold, color: ink });
-        y -= 42;
-        page.drawText(dateLine, { x: X0, y: y - 10, size: 10.5, font: font, color: ink });
-        y -= 20;
+        y -= 40;
+        headLines.forEach(function (pair) {
+          page.drawText(pair[0], { x: X0, y: y - 10, size: 10.5, font: font, color: ink });
+          page.drawText(pair[1], { x: X0 + 230, y: y - 10, size: 10.5, font: font, color: ink });
+          y -= 17;
+        });
+        y -= 6;
       } else {
-        page.drawText(title + ' (이어서) — ' + dateLine, { x: X0, y: y - 10, size: 10, font: bold, color: ink });
+        page.drawText(title + ' (이어서) — ' + headLines[0][0] + '   ' + headLines[1][0], { x: X0, y: y - 10, size: 10, font: bold, color: ink });
         y -= 22;
       }
       drawRow(headCells, headH, true);
@@ -189,7 +205,7 @@
         var n = cellLines[i].length;
         cellLines[i].forEach(function (t, k) {
           var f = isHead ? bold : font, sz = isHead ? HSIZE : SIZE;
-          var tx = isHead ? x + (c.w - f.widthOfTextAtSize(t, sz)) / 2 : x + PAD;
+          var tx = isHead || c.center ? x + (c.w - f.widthOfTextAtSize(t, sz)) / 2 : x + PAD;
           var ty = isHead ? y - (h - n * LH) / 2 - 8 - k * LH : y - PAD - 7.5 - k * LH;
           page.drawText(t, { x: tx, y: ty, size: sz, font: f, color: ink });
         });

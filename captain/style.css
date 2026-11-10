@@ -169,6 +169,7 @@
 .send-state { text-align: center; font-size: var(--fs-small); color: var(--text-muted); }
 .form-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 20px; }
 .form-fields:disabled input, .form-fields:disabled textarea { background: var(--bg); color: var(--text-muted); }
+.seg-3 { grid-template-columns: repeat(3, 1fr); }
 .seg-4 { grid-template-columns: repeat(4, 1fr); margin-top: 12px; }
 .seg-4 .seg-item span { font-size: 18px; }
 .pin-dialog-input { width: 100%; min-height: 60px; margin-top: 12px; border: 2px solid var(--border); border-radius: var(--radius); }
