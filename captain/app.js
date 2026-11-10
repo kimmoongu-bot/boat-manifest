@@ -339,7 +339,7 @@
               '<li><b>안내문 인쇄</b>로 QR 안내문을 뽑아 코팅해 배에 붙입니다</li>' +
               '<li>출항 전 <b>항차 열기 → QR 스캔</b>으로 손님 QR을 찍습니다</li>' +
               '<li>신분증을 보며 한 명씩 <b>신분증 확인</b>을 누르고 <b>명부 확정</b></li>' +
-              '<li><b>PDF·엑셀 보내기</b>로 카톡 PC·메일에 보내 보관합니다</li>' +
+              '<li><b>PDF 보내기</b>로 카톡 PC·메일에 보내 보관합니다(엑셀은 <b>엑셀 보내기</b>)</li>' +
             '</ol></details>' +
           '</section>' +
           '<div class="bottom-bar"><button class="btn btn-primary" id="open-voyage" type="button">' + next + '항차 열기</button></div>'
@@ -471,7 +471,8 @@
         '</section>' +
         '<div class="bottom-bar">' +
           (locked
-            ? '<button class="btn btn-primary" id="send" type="button">PDF·엑셀 보내기</button><p class="send-state" id="send-state" hidden></p>'
+            ? '<div class="bottom-bar-row send-row"><button class="btn btn-primary" id="send-pdf" type="button">PDF 보내기</button>' +
+              '<button class="btn btn-secondary" id="send-xlsx" type="button">엑셀 보내기</button></div><p class="send-state" id="send-state" hidden></p>'
             : '<button class="btn btn-primary" id="confirm-btn" type="button"' + (allChecked ? '' : ' disabled') + '>' +
                 (allChecked ? '명부 확정' : res.needCheck ? '신분증 확인 ' + res.checked + '/' + res.needCheck + ' — 모두 확인하면 확정' : '승객을 먼저 등록하세요') + '</button>') +
         '</div>'
@@ -523,24 +524,34 @@
       // 확정한 명부는 파일을 미리 만들어 둔다(공유는 버튼을 누른 직후에만 허락되므로)
       if (locked) {
         var ready = buildFiles(v, list);
-        var sb = document.getElementById('send'), st = document.getElementById('send-state');
+        var st = document.getElementById('send-state');
         ready.then(function (files) {
           st.hidden = false;
           st.textContent = files.map(function (f) { return f.name.split('.').pop().toUpperCase() + ' ' + kb(f.data.length); }).join(' · ') + ' 준비됨';
         }, function () { st.hidden = false; st.textContent = '파일을 만들지 못했습니다. 다시 열어 주세요'; });
-        sb.addEventListener('click', function () {
-          sb.disabled = true;
-          ready.then(function (files) {
-            return Export.deliver(files, voyageTitle(v) + ' 승선자명부').then(function (how) {
-              if (how === 'cancelled') { toast('보내기를 취소했습니다'); return; }
-              v.sharedAt = Date.now();
-              return DB.put('voyage', v).then(function () {
-                toast(how === 'shared' ? '보냈습니다' : how === 'mixed' ? 'PDF는 보냈고 엑셀은 다운로드 폴더에 저장했습니다' : '다운로드 폴더에 저장했습니다');
-                renderVoyage(v);
+        // 하나씩 보낸다: PDF 는 공유 창으로, 엑셀은 폰 크롬이 공유를 막으면 다운로드 폴더로
+        var sendOne = function (btn, idx) {
+          btn.addEventListener('click', function () {
+            btn.disabled = true;
+            ready.then(function (files) {
+              var f = files[idx], isPdf = idx === 0;
+              return Export.deliver([f], voyageTitle(v) + ' 승선자명부').then(function (how) {
+                if (how === 'cancelled') { toast('보내기를 취소했습니다'); return; }
+                v.sharedAt = Date.now();
+                return DB.put('voyage', v).then(function () {
+                  if (how === 'shared') { toast((isPdf ? 'PDF' : '엑셀') + '를 보냈습니다'); return renderVoyage(v); }
+                  return UI.confirm((isPdf ? 'PDF' : '엑셀') + ' 파일을 다운로드 폴더에 저장했습니다',
+                    (isPdf ? '이 폰에서는 바로 보내기가 안 됩니다. ' : '폰 크롬은 엑셀 파일을 바로 보내지 못합니다. ') +
+                    '카톡 채팅방에서 ＋ → 파일 → 다운로드로 들어가 "' + f.name + '" 파일을 골라 보내세요. ' +
+                    '또는 내 파일 → 다운로드에서 파일을 길게 누르고 공유를 누르세요.',
+                    '알겠습니다', 'primary', false).then(function () { return renderVoyage(v); });
+                });
               });
-            });
-          }).catch(function () { toast('파일을 만들지 못했습니다. 다시 눌러 주세요', true); }).then(function () { sb.disabled = false; });
-        });
+            }).catch(function () { toast('파일을 만들지 못했습니다. 다시 눌러 주세요', true); }).then(function () { btn.disabled = false; });
+          });
+        };
+        sendOne(document.getElementById('send-pdf'), 0);
+        sendOne(document.getElementById('send-xlsx'), 1);
       }
 
     });
