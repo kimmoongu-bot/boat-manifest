@@ -55,7 +55,7 @@
    - 항목(시행규칙 별지 제16호서식 기준): 번호, 성명, 생년월일, 성별, 주소, 휴대전화, 승객/선원 구분 + 비상연락처, 일행, 신분증 확인 시각
    - PDF 한글 깨짐 주의 — 한글 폰트 임베드 등 안정적 방법, 고른 방법과 이유를 보고
 8. 지난 명부: 날짜별 목록, 다시 내보내기, 공유 안 한 항차 "미전송" 표시, "이번 달 전체 엑셀"
-9. 명단 합치기: 다른 기기에서 나눠 찍은 같은 항차의 명부 파일(JSON)을 불러와 중복 없이 합침
+9. ~~명단 합치기~~ — 2026-11-10 삼월이 요청으로 뺌(폰에서 JSON 파일 보내기가 다운로드 창으로만 떠서 불편). 대신 "명부 보기"(제출 양식 순서로 화면에서 확인)
 10. 자동 삭제: 보관 기간(기본 3개월, 설정에서 변경) 지난 명부는 앱 열 때 삭제
 - 저장소: IndexedDB(DB 이름 boat-manifest). 테이블: vessel, crew, voyage, passenger — 구조는 `captain/db.js` 맨 위 주석
 - 항차 id = `YYYY-MM-DD_N`. 항차를 열 때 선장·선원 명단을 사본으로 넣고, 확정 전이면 설정에서 명단을 고칠 때 같이 바뀐다
@@ -68,7 +68,8 @@
   - 줄인 글꼴에서 GSUB·GPOS 를 뺀다. 남겨 두면 숫자 사이 '-' ':' 가 대체 글자로 바뀌는데 pdf-lib 가 그 너비를 안 적어 간격이 벌어진다
 - 엑셀: `captain/xlsx.js` 가 외부 라이브러리 없이 직접 만든다(zip 무압축). 이 PC의 실제 Excel로 열어 셀 내용 확인함
 - 공유: Web Share(파일)가 되면 공유, 안 되면 다운로드. 안드로이드 크롬은 .xlsx 공유를 막을 수 있어 그때는 PDF만 공유하고 엑셀은 다운로드("mixed")
-- 명단 합치기: 항차 화면 "명단 파일 보내기"(JSON, format `boat-manifest-voyage`) → 다른 기기 "명단 합치기". 겹치는 사람은 넣지 않고, 그쪽에서 신분증 확인했으면 시각만 가져옴
+- 명부 보기(#/v/항차id/sheet): PDF와 같은 줄·항목(Export.manifestRows·summary)을 카드로 보여 줌. 확정 전에도 볼 수 있고 "확인 안 함"은 빨간 글씨
+- 안드로이드 크롬 Web Share 는 .json 같은 파일 형식을 받지 않아 다운로드 창으로 넘어간다(명단 파일 보내기를 뺀 이유)
 - 자동 삭제: 앱을 열 때(잠금 푼 뒤) 보관 기간(설정, 기본 3개월)보다 오래된 항차를 건수·미전송 건수와 함께 알리고 지움. "나중에"를 누르면 다음에 열 때 다시 물음
 
 ## 개발 순서 — 단계마다 멈추고 보고, 삼월이가 확인하면 다음 단계
@@ -97,7 +98,7 @@
 index.html          첫 화면(손님/선장 고르기)
 guest/              손님용 PWA (index.html, app.js, style.css, manifest, sw.js, 아이콘)
 captain/            선장용 PWA (app.js 화면, db.js IndexedDB, scanner.js 카메라·사진, scan-worker.js jsQR,
-                    rules.js 경고, export.js PDF·엑셀·명단 파일·공유, xlsx.js 엑셀 만들기, font-subset.js PDF 글꼴 줄이기)
+                    rules.js 경고, export.js PDF·엑셀·공유, xlsx.js 엑셀 만들기, font-subset.js PDF 글꼴 줄이기)
 shared/             공용 코드 (bmqr.js QR 형식, person-form.js 입력칸·검사, ui.js 토스트·확인 창, base.css 토큰, ui.css 공용 부품)
 vendor/             외부 라이브러리 로컬 사본 (lz-string 1.5.0, qrcode-generator 1.4.4, jsQR 1.4.0, pdf-lib 1.17.1,
                     @pdf-lib/fontkit 1.1.1, harfbuzzjs 1.6.4 의 hb-subset.wasm, fonts/Pretendard 1.3.9 Regular·Bold TTF)

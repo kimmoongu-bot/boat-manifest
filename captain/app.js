@@ -28,6 +28,7 @@
       if ((m = /^crew\/(\d+)$/.exec(h))) return renderCrewForm(Number(m[1]));
       if ((m = /^v\/([^/]+)\/scan$/.exec(h))) return withVoyage(m[1], editable(renderScan));
       if ((m = /^v\/([^/]+)\/manual$/.exec(h))) return withVoyage(m[1], editable(renderManual));
+      if ((m = /^v\/([^/]+)\/sheet$/.exec(h))) return withVoyage(m[1], renderSheet);
       if ((m = /^v\/([^/]+)\/p\/(\d+)$/.exec(h))) { var pid = Number(m[2]); return withVoyage(m[1], function (v) { return renderPerson(v, pid); }); }
       if ((m = /^v\/([^/]+)$/.exec(h))) return withVoyage(m[1], renderVoyage);
       return renderHome();
@@ -444,6 +445,7 @@
             '<p class="hint">' + (v.sharedAt ? '보낸 시각 ' + Export.dateTime(v.sharedAt) : '<b class="text-warn">아직 보내지 않았습니다(미전송)</b>') + '</p></div>' : '') +
           countBar(v, res, list) +
           warnBox(res) +
+          '<a class="btn btn-secondary" href="#/v/' + vid + '/sheet">명부 보기</a>' +
           (locked ? '' :
             '<div class="actions">' +
               '<button class="btn btn-primary btn-big" id="go-scan" type="button">QR 스캔</button>' +
@@ -464,12 +466,6 @@
             return '<li class="row"><span class="row-main"><b>' + esc(c.name) + '</b><span class="tag">' + esc(c.role) + '</span></span>' +
               '<span class="row-sub num">' + fmtBirth(c.birth) + ' · ' + esc(c.phone) + '</span></li>';
           }).join('') + '</ul>' : '<a class="notice notice-warn notice-link" href="#/crew/new">선장·선원이 없습니다. 설정에서 추가해 주세요 ›</a>') +
-          '<h2 class="section-title">여러 기기로 나눠 찍을 때</h2>' +
-          '<p class="hint">다른 폰에서 "명단 파일 보내기"로 받은 파일을 여기서 불러오면 겹치는 사람 없이 합쳐집니다.</p>' +
-          '<div class="actions-row">' +
-            '<button class="btn btn-secondary" id="json-out" type="button">명단 파일 보내기</button>' +
-            (locked ? '' : '<label class="btn btn-secondary file-btn">명단 합치기<input type="file" accept=".json,application/json" id="json-in"></label>') +
-          '</div>' +
           (locked ? '<div class="danger-zone"><button class="btn btn-secondary" id="unlock" type="button">확정 풀기 (PIN)</button>' +
             '<p class="hint">고칠 것이 있을 때만 푸세요. 다시 확정하면 새로 보내야 합니다.</p></div>' : '') +
         '</section>' +
@@ -547,17 +543,41 @@
         });
       }
 
-      document.getElementById('json-out').addEventListener('click', function () {
-        var name = Export.fileBase(vessel, v) + '_' + (vessel.deviceName || '기기').replace(/\s+/g, '') + '.json';
-        Export.deliver([{ name: name, type: 'application/json', data: new TextEncoder().encode(Export.voyageJson(vessel, v, list)) }], voyageTitle(v) + ' 명단 파일')
-          .then(function (how) { if (how !== 'cancelled') toast('명단 파일을 보냈습니다'); });
-      });
-      var ji = document.getElementById('json-in');
-      if (ji) ji.addEventListener('change', function () {
-        var f = ji.files && ji.files[0];
-        ji.value = '';
-        if (f) f.text().then(function (t) { return mergeFile(v, t); }).catch(function () { toast('명단 파일을 읽지 못했습니다. 이 앱에서 보낸 .json 파일인지 확인해 주세요', true); });
-      });
+    });
+  }
+
+  // ---------- 명부 보기: 제출 양식과 같은 순서·항목을 화면에서 확인 ----------
+  function renderSheet(v) {
+    return DB.passengers(v.id).then(function (list) {
+      var s = Export.summary(vessel, v, list), rows = Export.manifestRows(v, list);
+      var excluded = list.filter(function (p) { return p.excluded; }).length;
+      var vid = encodeURIComponent(v.id);
+      var line = function (label, val, cls) {
+        return '<div class="sheet-line"><dt>' + label + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + esc(val || '-') + '</dd></div>';
+      };
+      view(
+        '<section class="screen sheet-view">' +
+          '<a class="back" href="#/v/' + vid + '">← ' + v.no + '항차 명단</a>' +
+          '<h1>' + s.title + '</h1>' +
+          '<div class="sheet-head">' + s.lines.map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('') + '</div>' +
+          (v.status === 'confirmed' ? '' : '<p class="notice notice-warn">아직 확정 전입니다. 신분증 확인을 마치고 명부를 확정하면 이 내용 그대로 PDF·엑셀로 보낼 수 있습니다.</p>') +
+          (excluded ? '<p class="hint">승선 제외한 ' + excluded + '명은 명부에서 빠집니다.</p>' : '') +
+          (rows.length ? '<ol class="sheet-list">' + rows.map(function (r) {
+            var crew = r.kind !== '승객';
+            return '<li class="sheet-row' + (crew ? ' sheet-crew' : '') + '">' +
+              '<p class="sheet-title"><span class="sheet-no num">' + r.no + '</span><b>' + esc(r.name) + '</b><span class="tag">' + esc(r.kind) + '</span></p>' +
+              '<dl>' +
+                line('생년월일', fmtBirth(r.birth) + ' · ' + r.sex) +
+                line('주소', r.addr) +
+                line('휴대전화', r.phone) +
+                (crew ? '' : line('비상연락처', r.emer) + line('일행', r.group) +
+                  line('신분증 확인', r.idcheck, r.idcheck === '확인 안 함' ? 'text-danger' : '')) +
+              '</dl></li>';
+          }).join('') + '</ol>' : '<p class="empty-big">아직 명부에 들어갈 사람이 없습니다.</p>') +
+          '<p class="hint sheet-foot">' + esc(s.foot) + '</p>' +
+        '</section>' +
+        '<div class="bottom-bar"><a class="btn btn-primary" href="#/v/' + vid + '">명단으로 돌아가기</a></div>'
+      );
     });
   }
 
@@ -596,33 +616,6 @@
       dlg.addEventListener('click', onClick);
       dlg.showModal();
       input.focus();
-    });
-  }
-
-  // 다른 기기 명단 파일 합치기: 겹치는 사람은 넣지 않고, 그쪽에서 신분증 확인했으면 확인 시각만 가져온다
-  function mergeFile(v, text) {
-    var d = Export.parseVoyageJson(text);
-    var same = d.voyage.date === v.date && Number(d.voyage.no) === v.no;
-    var ask = same ? Promise.resolve(true) : UI.confirm('다른 항차의 파일입니다',
-      '파일은 ' + fmtDate(d.voyage.date) + ' ' + d.voyage.no + '항차(' + (d.device || '다른 기기') + '), 지금 화면은 ' + voyageTitle(v) + '입니다. 그래도 합칠까요?', '합치기', 'primary');
-    return ask.then(function (ok) {
-      if (!ok) return;
-      var added = 0, dup = 0, checked = 0;
-      return d.passengers.reduce(function (pr, q) {
-        return pr.then(function () {
-          if (!q || !q.name || !/^\d{4}-\d{2}-\d{2}$/.test(q.birth || '')) return;
-          var p = Object.assign({}, q, { voyageId: v.id, source: 'merge', device: q.device || d.device || '', addedAt: q.addedAt || Date.now() });
-          return DB.addPassenger(p).then(function (r) {
-            if (r.added) { added++; return; }
-            dup++;
-            var ex = r.dup;
-            if (!ex.idCheckedAt && q.idCheckedAt) { ex.idCheckedAt = q.idCheckedAt; checked++; return DB.put('passenger', ex); }
-          });
-        });
-      }, Promise.resolve()).then(function () {
-        toast('합쳤습니다: ' + added + '명 추가, ' + dup + '명은 이미 있음' + (checked ? ', 신분증 확인 ' + checked + '명 가져옴' : ''));
-        return renderVoyage(v);
-      });
     });
   }
 

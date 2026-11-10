@@ -1,4 +1,4 @@
-/* 명부 내보내기: PDF(제출용) · 엑셀(보관용) · 명단 파일(JSON, 다른 기기와 합치기용) · 공유/다운로드
+/* 명부 내보내기: PDF(제출용) · 엑셀(보관용) · 공유/다운로드 (명부 보기 화면도 manifestRows·summary 를 같이 쓴다)
  * PDF 한글: HarfBuzz(hb-subset)로 Pretendard TTF 에서 명부에 쓴 글자만 남긴 글꼴을 만들어 pdf-lib 로 통째로 심는다
  *   (pdf-lib 자체 subset 은 한글이 빠지는 문제가 있어 쓰지 않음). 글꼴·wasm 은 vendor 에 두고 오프라인 캐시
  */
@@ -219,27 +219,6 @@
     return Xlsx.build([first].concat(list.map(function (it) { return sheetFor(vessel, it.voyage, it.passengers); })));
   }
 
-  // ---------- 명단 파일(다른 기기와 합치기) ----------
-  var MERGE_FORMAT = 'boat-manifest-voyage';
-  function voyageJson(vessel, voyage, passengers) {
-    return JSON.stringify({
-      format: MERGE_FORMAT, v: 1, exportedAt: Date.now(), device: vessel.deviceName,
-      vessel: { name: vessel.name, number: vessel.number },
-      voyage: { date: voyage.date, no: voyage.no },
-      passengers: passengers.map(function (p) {
-        var o = {};
-        ['name', 'birth', 'sex', 'addr', 'phone', 'emerName', 'emerPhone', 'grp', 'idx', 'cnt', 'made', 'source', 'addedAt', 'device', 'idCheckedAt', 'excluded']
-          .forEach(function (k) { o[k] = p[k]; });
-        return o;
-      })
-    }, null, 1);
-  }
-  function parseVoyageJson(text) {
-    var d = JSON.parse(text);
-    if (!d || d.format !== MERGE_FORMAT || !Array.isArray(d.passengers) || !d.voyage) throw new Error('FORMAT');
-    return d;
-  }
-
   // ---------- 공유 / 다운로드 ----------
   // files: [{name, type, data}] → 'shared' | 'downloaded' | 'mixed' | 'cancelled'
   function deliver(files, title) {
@@ -267,8 +246,8 @@
   }
 
   root.Export = {
-    COLUMNS: COLUMNS, manifestRows: manifestRows, fileBase: fileBase, pdf: pdf, xlsx: xlsx, monthXlsx: monthXlsx,
-    voyageJson: voyageJson, parseVoyageJson: parseVoyageJson, deliver: deliver, dateTime: dateTime, hm: hm,
+    COLUMNS: COLUMNS, manifestRows: manifestRows, summary: summary, fileBase: fileBase, pdf: pdf, xlsx: xlsx, monthXlsx: monthXlsx,
+    deliver: deliver, dateTime: dateTime, hm: hm,
     PDF_MIME: 'application/pdf'
   };
 })(window);
