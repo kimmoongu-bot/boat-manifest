@@ -1,4 +1,4 @@
-/* 명부 내보내기: PDF(제출용) · 엑셀(보관용) · 공유/다운로드 (명부 보기 화면도 manifestRows·summary 를 같이 쓴다)
+/* 명부 내보내기: PDF(제출용) · 사진 PNG(카톡용) · 엑셀(보관용) · 공유/다운로드 (명부 보기 화면도 manifestRows·summary 를 같이 쓴다)
  * PDF 한글: HarfBuzz(hb-subset)로 Pretendard TTF 에서 명부에 쓴 글자만 남긴 글꼴을 만들어 pdf-lib 로 통째로 심는다
  *   (pdf-lib 자체 subset 은 한글이 빠지는 문제가 있어 쓰지 않음). 글꼴·wasm 은 vendor 에 두고 오프라인 캐시
  */
@@ -6,16 +6,16 @@
   'use strict';
 
   var COLUMNS = [
-    { key: 'no', header: '번호', pdf: 24, xl: 6 },
-    { key: 'kind', header: '구분', pdf: 32, xl: 7 },
-    { key: 'name', header: '성명', pdf: 50, xl: 10 },
-    { key: 'birth', header: '생년월일', pdf: 54, xl: 12 },
-    { key: 'sex', header: '성별', pdf: 26, xl: 6 },
-    { key: 'addr', header: '주소', pdf: 268, xl: 40 },
-    { key: 'phone', header: '휴대전화', pdf: 76, xl: 15 },
-    { key: 'emer', header: '비상연락처', pdf: 100, xl: 24 },
-    { key: 'group', header: '일행', pdf: 80, xl: 18 },
-    { key: 'idcheck', header: '신분증 확인', pdf: 76, xl: 18 }
+    { key: 'no', header: '번호', pdf: 24, xl: 6, img: 30 },
+    { key: 'kind', header: '구분', pdf: 32, xl: 7, img: 32 },
+    { key: 'name', header: '성명', pdf: 50, xl: 10, img: 50 },
+    { key: 'birth', header: '생년월일', pdf: 54, xl: 12, img: 64 },
+    { key: 'sex', header: '성별', pdf: 26, xl: 6, img: 26 },
+    { key: 'addr', header: '주소', pdf: 268, xl: 40, img: 238 },
+    { key: 'phone', header: '휴대전화', pdf: 76, xl: 15, img: 84 },
+    { key: 'emer', header: '비상연락처', pdf: 100, xl: 24, img: 100 },
+    { key: 'group', header: '일행', pdf: 80, xl: 18, img: 80 },
+    { key: 'idcheck', header: '신분증 확인', pdf: 76, xl: 18, img: 76 }
   ];
 
   var WEEK = ['일', '월', '화', '수', '목', '금', '토'];
@@ -219,6 +219,89 @@
     return Xlsx.build([first].concat(list.map(function (it) { return sheetFor(vessel, it.voyage, it.passengers); })));
   }
 
+  // ---------- 사진(PNG): 카톡에서 바로 보이게 명부 한 장을 그림으로 ----------
+  var imgFont = null;
+  function loadImgFont() {
+    if (!imgFont) {
+      imgFont = loadFonts().then(function (b) {
+        var faces = [new FontFace('BMPretendard', b[0].slice(0), { weight: '400' }), new FontFace('BMPretendard', b[1].slice(0), { weight: '700' })];
+        return Promise.all(faces.map(function (f) { return f.load(); })).then(function (fs) { fs.forEach(function (f) { document.fonts.add(f); }); });
+      }).catch(function (e) { imgFont = null; throw e; });
+    }
+    return imgFont;
+  }
+  function png(vessel, voyage, passengers) {
+    return loadImgFont().then(function () {
+      var s = summary(vessel, voyage, passengers), rows = manifestRows(voyage, passengers);
+      var IMGW = COLUMNS.reduce(function (a, c) { return a + c.img; }, 0);
+      var K = 2;                       // 사진용 칸 너비(img)의 2배를 픽셀로
+      var M = 32, W = IMGW * K + M * 2, FS = 20, LH = 28, PADX = 8, PADY = 10;
+      var c = document.createElement('canvas'), g = c.getContext('2d');
+      var F = function (bold, size) { return (bold ? '700 ' : '400 ') + (size || FS) + 'px BMPretendard, sans-serif'; };
+      var lines = function (text, width, bold) {
+        g.font = F(bold);
+        var out = [], line = '';
+        String(text == null || text === '' ? '-' : text).split(/\s+/).forEach(function (word) {
+          var t = line ? line + ' ' + word : word;
+          if (g.measureText(t).width <= width) { line = t; return; }
+          if (line) out.push(line);
+          line = '';
+          while (g.measureText(word).width > width) {
+            var i = word.length;
+            while (i > 1 && g.measureText(word.slice(0, i)).width > width) i--;
+            out.push(word.slice(0, i)); word = word.slice(i);
+          }
+          line = word;
+        });
+        if (line) out.push(line);
+        return out;
+      };
+      var cell = function (r, col) {
+        var v = r[col.key];
+        if (col.key === 'birth') v = String(v || '').replace(/-/g, '.');
+        return v;
+      };
+      // 줄 높이 먼저 계산
+      var head = COLUMNS.map(function (col) { return lines(col.header, col.img * K - PADX * 2, true); });
+      var headH = Math.max.apply(null, head.map(function (l) { return l.length; })) * LH + PADY * 2;
+      var body = rows.map(function (r) {
+        var cells = COLUMNS.map(function (col) { return lines(cell(r, col), col.img * K - PADX * 2, col.key === 'name'); });
+        return { r: r, cells: cells, h: Math.max.apply(null, cells.map(function (l) { return l.length; })) * LH + PADY * 2 };
+      });
+      var top = M + 44 + s.lines.length * 30 + 20;
+      var H = top + headH + body.reduce(function (a, b) { return a + b.h; }, 0) + 24 + 26 + M;
+      c.width = W; c.height = H;
+      g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#111'; g.textBaseline = 'top';
+      g.font = F(true, 32); g.fillText(s.title, M, M);
+      g.font = F(false, 20);
+      s.lines.forEach(function (t, i) { g.fillText(t, M, M + 48 + i * 30); });
+      var drawRow = function (y, h, cells, fill, bold) {
+        var x = M;
+        if (fill) { g.fillStyle = fill; g.fillRect(M, y, IMGW * K, h); }
+        COLUMNS.forEach(function (col, ci) {
+          var w = col.img * K;
+          g.strokeStyle = '#555'; g.lineWidth = 1.5; g.strokeRect(x, y, w, h);
+          g.fillStyle = cells[ci].join('') === '확인 안 함' ? '#B91C1C' : '#111';
+          g.font = F(bold || col.key === 'name');
+          cells[ci].forEach(function (t, li) { g.fillText(t, x + PADX, y + PADY + li * LH + 2); });
+          x += w;
+        });
+      };
+      var y = top;
+      drawRow(y, headH, head, '#E8EEF3', true); y += headH;
+      body.forEach(function (b) { drawRow(y, b.h, b.cells, b.r.kind === '승객' ? null : '#F4F7FA'); y += b.h; });
+      if (!rows.length) { g.fillStyle = '#666'; g.font = F(false); g.fillText('명부에 들어갈 사람이 없습니다', M, y + 12); }
+      g.fillStyle = '#666'; g.font = F(false, 16); g.fillText(s.foot, M, y + 24);
+      return new Promise(function (resolve, reject) {
+        c.toBlob(function (blob) {
+          if (!blob) return reject(new Error('PNG'));
+          blob.arrayBuffer().then(function (ab) { resolve(new Uint8Array(ab)); }, reject);
+        }, 'image/png');
+      });
+    });
+  }
+
   // ---------- 공유 / 다운로드 ----------
   // files: [{name, type, data}] → 'shared' | 'downloaded' | 'mixed' | 'cancelled'
   function deliver(files, title) {
@@ -238,6 +321,8 @@
       return 'downloaded';
     });
   }
+  // 공유를 시도하지 않고 바로 다운로드 폴더에 저장
+  function save(f) { download(new File([f.data], f.name, { type: f.type })); return 'downloaded'; }
   function download(file) {
     var url = URL.createObjectURL(file), a = document.createElement('a');
     a.href = url; a.download = file.name;
@@ -246,8 +331,8 @@
   }
 
   root.Export = {
-    COLUMNS: COLUMNS, manifestRows: manifestRows, summary: summary, fileBase: fileBase, pdf: pdf, xlsx: xlsx, monthXlsx: monthXlsx,
-    deliver: deliver, dateTime: dateTime, hm: hm,
+    COLUMNS: COLUMNS, manifestRows: manifestRows, summary: summary, fileBase: fileBase, pdf: pdf, png: png, xlsx: xlsx, monthXlsx: monthXlsx,
+    deliver: deliver, save: save, dateTime: dateTime, hm: hm,
     PDF_MIME: 'application/pdf'
   };
 })(window);

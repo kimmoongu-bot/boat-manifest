@@ -163,6 +163,8 @@
 .warn-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .warn-tag { padding: 0 8px; border-radius: 6px; background: var(--warn-soft); color: var(--warn); font-size: 14px; font-weight: 700; line-height: 1.8; }
 .send-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.send-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.send-row-3 .btn { padding-left: 4px; padding-right: 4px; font-size: 18px; }
 .send-state { text-align: center; font-size: var(--fs-small); color: var(--text-muted); }
 .form-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 20px; }
 .form-fields:disabled input, .form-fields:disabled textarea { background: var(--bg); color: var(--text-muted); }
