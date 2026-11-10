@@ -35,7 +35,7 @@
   function manifestRows(voyage, passengers) {
     var rows = [], n = 0;
     (voyage.crew || []).forEach(function (c) {
-      rows.push({ no: ++n, kind: c.role, name: c.name, birth: c.birth, sex: c.sex, addr: c.addr, phone: c.phone,
+      rows.push({ no: ++n, kind: c.role, name: c.name, birth: c.birth, sex: c.sex, addr: c.addr, phone: c.phone, license: c.license || '',
         emer: '-', group: '-', idcheck: '-' });
     });
     var active = passengers.filter(function (p) { return !p.excluded; });
@@ -64,6 +64,7 @@
     return rows;
   }
 
+  var FOOT = '「낚시 관리 및 육성법」 제33조 승선자명부 · 같은 법 시행규칙 별지 제16호서식';
   function summary(vessel, voyage, passengers) {
     var active = passengers.filter(function (p) { return !p.excluded; });
     var crew = (voyage.crew || []).length;
@@ -75,7 +76,7 @@
           (voyage.confirmedAt ? '   명부 확정 ' + dateTime(voyage.confirmedAt) : '   (확정 전)') +
           (voyage.deviceName ? '   작성 기기 ' + voyage.deviceName : '')
       ],
-      foot: '「낚시 관리 및 육성법」 제33조 승선자명부 · 항목: 같은 법 시행규칙 별지 제16호서식 기준'
+      foot: FOOT
     };
   }
 
@@ -113,6 +114,25 @@
     return out;
   }
 
+  // 법정 서식(낚시 관리 및 육성법 시행규칙 별지 제16호서식) 칸 순서 — PDF 전용. 일행·신분증 확인 같은 앱 정보는 엑셀에만
+  var FORM_COLUMNS = [
+    { header: '성명', w: 54, get: function (r) { return r.name; } },
+    { header: '생년월일', w: 56, get: function (r) { return String(r.birth || '').replace(/-/g, '.'); } },
+    { header: '성별', w: 26, get: function (r) { return r.sex; } },
+    { header: '주소', w: 158, get: function (r) { return r.addr; } },
+    { header: '전화번호 (휴대전화)', w: 78, get: function (r) { return r.phone; } },
+    { header: '비상연락처 (직계가족 등 휴대전화)', w: 87, get: function (r) { return r.kind === '승객' ? r.emer : ''; } },
+    { header: '비고 (선원 또는 승객)', w: 80, get: function (r) { return r.kind === '승객' ? '승객' : '선원' + (r.license ? ' / ' + r.license : ''); } }
+  ];
+  function formDate(ymd) {
+    var p = String(ymd || '').split('-');
+    return p.length === 3 ? p[0] + '년 ' + p[1] + '월 ' + p[2] + '일' : '';
+  }
+  function formInfo(vessel, voyage) {
+    return '선박명 ' + vessel.name + ' (' + vessel.number + ') · ' + voyage.no + '항차' +
+      (voyage.confirmedAt ? ' · 명부 확정 ' + dateTime(voyage.confirmedAt) : ' · 확정 전');
+  }
+
   function pdf(vessel, voyage, passengers) {
     var L = root.PDFLib;
     return loadFonts().then(function (fb) {
@@ -121,10 +141,9 @@
         doc.setTitle(fileBase(vessel, voyage));
         doc.setCreator('승선명부 앱');
         // 명부에 쓰는 글자를 모두 모아 그 글자만 남긴 글꼴을 만든 뒤 통째로 심는다
-        var s = summary(vessel, voyage, passengers);
-        var text = [s.title, s.foot, '(이어서) — / 0123456789.', dateDots(voyage.date)].concat(s.lines)
-          .concat(COLUMNS.map(function (c) { return c.header; }))
-          .concat(manifestRows(voyage, passengers).map(function (r) { return COLUMNS.map(function (c) { return r[c.key]; }).join(' '); }))
+        var text = ['승선자 명부', '승선일: ' + formDate(voyage.date), formInfo(vessel, voyage), FOOT, '(이어서) — / 0123456789.:']
+          .concat(FORM_COLUMNS.map(function (c) { return c.header; }))
+          .concat(manifestRows(voyage, passengers).map(function (r) { return FORM_COLUMNS.map(function (c) { return c.get(r); }).join(' '); }))
           .join(' ');
         return Promise.all([FontSubset.subset(fb[2], fb[0], text), FontSubset.subset(fb[2], fb[1], text)]).then(function (sub) {
           return Promise.all([doc.embedFont(sub[0], { subset: false }), doc.embedFont(sub[1], { subset: false })]);
@@ -136,56 +155,62 @@
     });
   }
 
+  // A4 세로. 사람이 많으면 다음 장으로 넘기고 표 머리줄을 다시 그린다
   function drawPdf(L, doc, font, bold, vessel, voyage, passengers) {
-    var W = 842, H = 595, M = 28, SIZE = 8.5, LH = 11, PAD = 4;
-    var ink = L.rgb(0.05, 0.1, 0.14), line = L.rgb(0.55, 0.64, 0.7), head = L.rgb(0.86, 0.91, 0.95), muted = L.rgb(0.3, 0.36, 0.42);
-    var s = summary(vessel, voyage, passengers), rows = manifestRows(voyage, passengers);
+    var W = 595, H = 842, M = 28, SIZE = 8.5, HSIZE = 8.5, LH = 11, PAD = 4;
+    var ink = L.rgb(0, 0, 0), line = L.rgb(0.25, 0.25, 0.25), head = L.rgb(0.92, 0.92, 0.92), muted = L.rgb(0.35, 0.35, 0.35);
+    var rows = manifestRows(voyage, passengers);
+    var TW = FORM_COLUMNS.reduce(function (a, c) { return a + c.w; }, 0), X0 = (W - TW) / 2;
+    var title = '승선자 명부', dateLine = '승선일: ' + formDate(voyage.date);
     var pages = [], page, y;
+    var headCells = FORM_COLUMNS.map(function (c) { return wrap(c.header, bold, HSIZE, c.w - PAD * 2); });
+    var headH = Math.max.apply(null, headCells.map(function (c) { return c.length; })) * LH + PAD * 2 + 2;
 
     function newPage() {
       page = doc.addPage([W, H]);
       pages.push(page);
-      y = H - M;
+      y = H - M - 8;
       if (pages.length === 1) {
-        page.drawText(s.title, { x: M, y: y - 16, size: 16, font: bold, color: ink });
-        y -= 30;
-        s.lines.forEach(function (t) { page.drawText(t, { x: M, y: y - 9, size: 9.5, font: font, color: ink }); y -= 15; });
-        y -= 6;
-      } else {
-        page.drawText(s.title + ' — ' + dateDots(voyage.date) + ' ' + voyage.no + '항차 (이어서)', { x: M, y: y - 10, size: 10, font: bold, color: ink });
+        var tw = bold.widthOfTextAtSize(title, 18);
+        page.drawText(title, { x: (W - tw) / 2, y: y - 18, size: 18, font: bold, color: ink });
+        y -= 42;
+        page.drawText(dateLine, { x: X0, y: y - 10, size: 10.5, font: font, color: ink });
         y -= 20;
+      } else {
+        page.drawText(title + ' (이어서) — ' + dateLine, { x: X0, y: y - 10, size: 10, font: bold, color: ink });
+        y -= 22;
       }
-      drawRow(COLUMNS.map(function (c) { return [c.header]; }), 20, true);
+      drawRow(headCells, headH, true);
     }
     function drawRow(cellLines, h, isHead) {
-      var x = M;
-      COLUMNS.forEach(function (c, i) {
-        page.drawRectangle({ x: x, y: y - h, width: c.pdf, height: h, borderColor: line, borderWidth: 0.6, color: isHead ? head : undefined });
+      var x = X0;
+      FORM_COLUMNS.forEach(function (c, i) {
+        page.drawRectangle({ x: x, y: y - h, width: c.w, height: h, borderColor: line, borderWidth: 0.7, color: isHead ? head : undefined });
+        var n = cellLines[i].length;
         cellLines[i].forEach(function (t, k) {
-          var f = isHead ? bold : font;
-          var tx = isHead ? x + (c.pdf - f.widthOfTextAtSize(t, SIZE)) / 2 : x + PAD;
-          page.drawText(t, { x: tx, y: y - PAD - 7.5 - k * LH, size: SIZE, font: f, color: ink });
+          var f = isHead ? bold : font, sz = isHead ? HSIZE : SIZE;
+          var tx = isHead ? x + (c.w - f.widthOfTextAtSize(t, sz)) / 2 : x + PAD;
+          var ty = isHead ? y - (h - n * LH) / 2 - 8 - k * LH : y - PAD - 7.5 - k * LH;
+          page.drawText(t, { x: tx, y: ty, size: sz, font: f, color: ink });
         });
-        x += c.pdf;
+        x += c.w;
       });
       y -= h;
     }
 
     newPage();
     rows.forEach(function (r) {
-      var cells = COLUMNS.map(function (c) {
-        var v = r[c.key];
-        if (c.key === 'birth') v = String(v || '').replace(/-/g, '.');
-        return wrap(v, font, SIZE, c.pdf - PAD * 2);
-      });
-      var h = Math.max.apply(null, cells.map(function (c) { return c.length; })) * LH + PAD * 2 - 1;
-      if (y - h < M + 18) newPage();
+      var cells = FORM_COLUMNS.map(function (c) { return wrap(c.get(r), font, SIZE, c.w - PAD * 2); });
+      var h = Math.max(22, Math.max.apply(null, cells.map(function (c) { return c.length; })) * LH + PAD * 2 - 1);
+      if (y - h < M + 30) newPage();
       drawRow(cells, h, false);
     });
+    var info = formInfo(vessel, voyage);
     pages.forEach(function (p, i) {
-      p.drawText(s.foot, { x: M, y: M - 4, size: 7.5, font: font, color: muted });
+      p.drawText(info, { x: X0, y: M + 8, size: 7.5, font: font, color: muted });
+      p.drawText(FOOT, { x: X0, y: M - 3, size: 7, font: font, color: muted });
       var t = (i + 1) + ' / ' + pages.length;
-      p.drawText(t, { x: W - M - font.widthOfTextAtSize(t, 8), y: M - 4, size: 8, font: font, color: muted });
+      p.drawText(t, { x: X0 + TW - font.widthOfTextAtSize(t, 8), y: M + 8, size: 8, font: font, color: muted });
     });
   }
 

@@ -162,6 +162,7 @@
 .row-pax.excluded b { text-decoration: line-through; }
 .warn-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .warn-tag { padding: 0 8px; border-radius: 6px; background: var(--warn-soft); color: var(--warn); font-size: 14px; font-weight: 700; line-height: 1.8; }
+.optional { font-weight: 500; color: var(--text-muted); font-size: var(--fs-small); }
 .send-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .send-row-3 { grid-template-columns: 1fr 1fr 1fr; }
 .send-row-3 .btn { padding-left: 4px; padding-right: 4px; font-size: 18px; }

@@ -1,5 +1,5 @@
 /* 선장용 오프라인 캐시. 파일을 고치면 VERSION 을 올린다 */
-var VERSION = 'captain-v12';
+var VERSION = 'captain-v13';
 var FONT_CACHE = 'bm-fonts';
 var FILES = [
   './',

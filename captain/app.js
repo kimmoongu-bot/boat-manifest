@@ -205,7 +205,7 @@
     return '<ul class="rows">' + crew.map(function (c) {
       return '<li><a class="row row-link" href="#/crew/' + c.id + '">' +
         '<span class="row-main"><b>' + esc(c.name) + '</b><span class="tag">' + esc(c.role) + '</span></span>' +
-        '<span class="row-sub num">' + fmtBirth(c.birth) + ' · ' + esc(c.phone) + '</span></a></li>';
+        '<span class="row-sub num">' + fmtBirth(c.birth) + ' · ' + esc(c.phone) + (c.license ? ' · ' + esc(c.license) : '') + '</span></a></li>';
     }).join('') + '</ul>';
   }
 
@@ -225,6 +225,9 @@
                 }).join('') +
               '</div><p class="err" id="err-role"></p></fieldset>' +
               PersonForm.fieldsHtml(p, { emergency: false }) +
+              PersonForm.field('license', '해기사 면허번호 또는 선원수첩 번호 <span class="optional">(선택)</span>',
+                '<input id="f-license" name="license" type="text" autocomplete="off" maxlength="30" value="' + esc(p.license) + '">',
+                '적으면 승선자명부 PDF 비고란에 "선원 / 번호"로 들어갑니다') +
               '<div class="bottom-bar"><button class="btn btn-primary" type="submit">저장</button></div>' +
             '</form>' +
             (c ? '<div class="danger-zone"><button class="btn btn-danger" type="button" id="del-btn">명단에서 지우기</button></div>' : '') +
@@ -236,6 +239,7 @@
           e.preventDefault();
           var d = PersonForm.read(f, ['name', 'birth', 'sex', 'addr', 'phone']);
           d.role = f.elements.role.value;
+          d.license = f.elements.license.value.trim();
           var errs = PersonForm.validate(Object.assign({ emerName: '', emerPhone: '' }, d), { emergency: false });
           if (d.role !== '선장' && d.role !== '선원') errs.role = '구분을 골라 주세요';
           if (PersonForm.showErrors(f, errs)) return;

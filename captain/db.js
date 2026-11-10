@@ -1,6 +1,6 @@
 /* 선장 앱 저장소 (IndexedDB) — 테이블: vessel, crew, voyage, passenger
  * vessel   : { id:'main', name, number, capacity, deviceName, pinSalt, pinHash }
- * crew     : { id(자동), role:'선장'|'선원', name, birth, sex, addr, phone, order }
+ * crew     : { id(자동), role:'선장'|'선원', name, birth, sex, addr, phone, license(해기사 면허·선원수첩 번호, 선택), order }
  * voyage   : { id:'YYYY-MM-DD_N', date, no, openedAt, status:'open'|'confirmed', confirmedAt, sharedAt, deviceName, crew:[선장·선원 사본] }
  * passenger: { id(자동), voyageId, key(성명|생년월일|전화), name, birth, sex, addr, phone, emerName, emerPhone,
  *              grp, idx, cnt, made, source:'camera'|'image'|'manual'|'merge', addedAt, device,
