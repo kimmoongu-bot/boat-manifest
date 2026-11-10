@@ -29,6 +29,7 @@
       if ((m = /^v\/([^/]+)\/scan$/.exec(h))) return withVoyage(m[1], editable(renderScan));
       if ((m = /^v\/([^/]+)\/manual$/.exec(h))) return withVoyage(m[1], editable(renderManual));
       if ((m = /^v\/([^/]+)\/sheet$/.exec(h))) return withVoyage(m[1], renderSheet);
+      if ((m = /^v\/([^/]+)\/memo$/.exec(h))) return withVoyage(m[1], renderMemo);
       if ((m = /^v\/([^/]+)\/p\/(\d+)$/.exec(h))) { var pid = Number(m[2]); return withVoyage(m[1], function (v) { return renderPerson(v, pid); }); }
       if ((m = /^v\/([^/]+)$/.exec(h))) return withVoyage(m[1], renderVoyage);
       return renderHome();
@@ -452,7 +453,8 @@
             '<p class="hint">' + (v.sharedAt ? '보낸 시각 ' + Export.dateTime(v.sharedAt) : '<b class="text-warn">아직 보내지 않았습니다(미전송)</b>') + '</p></div>' : '') +
           countBar(v, res, list) +
           warnBox(res) +
-          '<a class="btn btn-secondary" href="#/v/' + vid + '/sheet">미리보기</a>' +
+          '<div class="actions-row"><a class="btn btn-secondary" href="#/v/' + vid + '/sheet">미리보기</a>' +
+          '<a class="btn btn-secondary" href="#/v/' + vid + '/memo">' + (v.memo ? '메모 ✓' : '메모 추가') + '</a></div>' +
           (locked ? '' :
             '<div class="actions">' +
               '<button class="btn btn-primary btn-big" id="go-scan" type="button">QR 스캔</button>' +
@@ -530,24 +532,28 @@
     });
   }
 
-  // ---------- 명부 보기: 제출 양식과 같은 순서·항목을 화면에서 확인 ----------
+  // ---------- 미리보기: 보낼 서식(PDF와 같은 배치)을 화면에 그대로, 아래에 사람별 확인 ----------
   function renderSheet(v) {
     return DB.passengers(v.id).then(function (list) {
-      var s = Export.summary(vessel, v, list), rows = Export.manifestRows(v, list);
+      var rows = Export.manifestRows(v, list);
       var excluded = list.filter(function (p) { return p.excluded; }).length;
+      var unchecked = rows.filter(function (r) { return r.idcheck === '확인 안 함'; }).length;
       var vid = encodeURIComponent(v.id);
+      var confirmed = v.status === 'confirmed';
       var line = function (label, val, cls) {
         return '<div class="sheet-line"><dt>' + label + '</dt><dd' + (cls ? ' class="' + cls + '"' : '') + '>' + esc(val || '-') + '</dd></div>';
       };
       view(
         '<section class="screen sheet-view">' +
           '<a class="back" href="#/v/' + vid + '">← ' + v.no + '항차 명단</a>' +
-          '<h1>' + s.title + '</h1>' +
-          '<div class="sheet-head">' + s.lines.map(function (t) { return '<p>' + esc(t) + '</p>'; }).join('') + '</div>' +
-          (v.status === 'confirmed'
+          '<h1>미리보기</h1>' +
+          (confirmed
             ? '<p class="hint">' + (v.sharedAt ? '보낸 시각 ' + Export.dateTime(v.sharedAt) : '<b class="text-warn">아직 보내지 않았습니다(미전송)</b>') + '</p>'
-            : '<p class="notice notice-warn">아직 확정 전입니다. 신분증 확인을 마치고 명부를 확정하면 이 내용 그대로 PDF·사진·엑셀로 보낼 수 있습니다.</p>') +
+            : '<p class="notice notice-warn">아직 확정 전입니다' + (unchecked ? '(신분증 확인 안 한 사람 ' + unchecked + '명)' : '') + '. 확정하면 이 문서 그대로 PDF·사진·엑셀로 보낼 수 있습니다.</p>') +
           (excluded ? '<p class="hint">승선 제외한 ' + excluded + '명은 명부에서 빠집니다.</p>' : '') +
+          '<div class="doc-pages" id="doc-pages"><p class="hint">문서를 만드는 중…</p></div>' +
+          '<a class="btn btn-secondary" href="#/v/' + vid + '/memo">' + (v.memo ? '메모 고치기' : '메모 추가') + '</a>' +
+          '<details class="sheet-people"><summary>사람별로 보기 (' + rows.length + '명)</summary>' +
           (rows.length ? '<ol class="sheet-list">' + rows.map(function (r) {
             var crew = r.kind !== '승객';
             return '<li class="sheet-row' + (crew ? ' sheet-crew' : '') + '">' +
@@ -559,10 +565,10 @@
                 (crew ? '' : line('비상연락처', r.emer) + line('일행', r.group) +
                   line('신분증 확인', r.idcheck, r.idcheck === '확인 안 함' ? 'text-danger' : '')) +
               '</dl></li>';
-          }).join('') + '</ol>' : '<p class="empty-big">아직 명부에 들어갈 사람이 없습니다.</p>') +
-          '<p class="hint sheet-foot">' + esc(s.foot) + '</p>' +
+          }).join('') + '</ol>' : '<p class="empty">아직 명부에 들어갈 사람이 없습니다.</p>') +
+          '</details>' +
         '</section>' +
-        '<div class="bottom-bar">' + (v.status === 'confirmed'
+        '<div class="bottom-bar">' + (confirmed
           ? '<div class="send-row send-row-3">' +
               '<button class="btn btn-primary" id="send-pdf" type="button">PDF 보내기</button>' +
               '<button class="btn btn-primary" id="send-png" type="button">사진 보내기</button>' +
@@ -570,7 +576,52 @@
             '<p class="send-state" id="send-state" hidden></p>'
           : '<a class="btn btn-primary" href="#/v/' + vid + '">명단으로 돌아가기</a>') + '</div>'
       );
-      if (v.status === 'confirmed') bindSend(v, list);
+      // 문서 쪽 그림(누르면 크게)
+      var box = document.getElementById('doc-pages');
+      Export.canvases(vessel, v, list).then(function (cs) {
+        box.innerHTML = '';
+        cs.forEach(function (c, i) {
+          c.className = 'doc-page';
+          c.setAttribute('role', 'img');
+          c.setAttribute('aria-label', '승선자 명부 ' + (i + 1) + '쪽');
+          c.addEventListener('click', function () { c.classList.toggle('zoom'); box.classList.toggle('zoomed', !!box.querySelector('.zoom')); });
+          box.appendChild(c);
+        });
+        if (cs.length > 1) box.insertAdjacentHTML('afterbegin', '<p class="hint">' + cs.length + '쪽입니다. 문서를 누르면 크게 보입니다.</p>');
+        else box.insertAdjacentHTML('afterbegin', '<p class="hint">문서를 누르면 크게 보입니다.</p>');
+      }, function () { box.innerHTML = '<p class="notice notice-warn">문서를 그리지 못했습니다. 다시 열어 주세요.</p>'; });
+      if (confirmed) bindSend(v, list);
+    });
+  }
+
+  // ---------- 항차 메모: 서식 맨 아래 메모란에 들어간다 ----------
+  function renderMemo(v) {
+    var vid = encodeURIComponent(v.id);
+    view(
+      '<section class="screen">' +
+        '<a class="back" href="#/v/' + vid + '">← ' + v.no + '항차 명단</a>' +
+        '<h1>메모</h1>' +
+        '<p class="lead">승선자 명부 맨 아래 메모란에 들어갑니다. 예) 출항 시각, 기상, 특이사항</p>' +
+        '<form id="mform" class="form" novalidate>' +
+          '<div class="field"><label for="f-memo">메모 내용</label>' +
+            '<textarea id="f-memo" name="memo" rows="6" maxlength="400">' + esc(v.memo || '') + '</textarea>' +
+            '<p class="hint" id="memo-count"></p></div>' +
+          (v.status === 'confirmed' ? '<p class="notice notice-warn">확정한 명부입니다. 메모를 바꾸면 "미전송"으로 돌아가니 다시 보내 주세요.</p>' : '') +
+          '<div class="bottom-bar"><button class="btn btn-primary" type="submit">저장</button></div>' +
+        '</form>' +
+      '</section>'
+    );
+    var f = document.getElementById('mform'), ta = f.elements.memo, cnt = document.getElementById('memo-count');
+    var upd = function () { cnt.textContent = ta.value.length + ' / 400자'; };
+    ta.addEventListener('input', upd); upd();
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var memo = ta.value.replace(/\s+$/, '');
+      if (memo === (v.memo || '')) { go('#/v/' + vid + '/sheet'); return; }
+      v.memo = memo;
+      if (v.status === 'confirmed') v.sharedAt = null;
+      DB.put('voyage', v).then(function () { toast('메모를 저장했습니다'); go('#/v/' + vid + '/sheet'); },
+        function () { toast('저장하지 못했습니다. 다시 눌러 주세요', true); });
     });
   }
 
@@ -579,49 +630,50 @@
   function bindSend(v, list) {
     var ready = buildFiles(v, list);
     var st = document.getElementById('send-state');
-    var LABEL = { pdf: 'PDF', png: '사진', xlsx: '엑셀' };
-    ready.then(function (files) {
+    var size = function (fs) { return kb(fs.reduce(function (a, f) { return a + f.data.length; }, 0)); };
+    ready.then(function (g) {
       st.hidden = false;
-      st.textContent = files.map(function (f) { return LABEL[f.name.split('.').pop()] + ' ' + kb(f.data.length); }).join(' · ') + ' 준비됨';
+      st.textContent = 'PDF ' + size(g.pdf) + ' · 사진 ' + g.png.length + '장 ' + size(g.png) + ' · 엑셀 ' + size(g.xlsx) + ' 준비됨';
     }, function () { st.hidden = false; st.textContent = '파일을 만들지 못했습니다. 다시 열어 주세요'; });
-    var howToSend = function (f) {
-      return '카톡 채팅방에서 ＋ → 파일 → 다운로드로 들어가 "' + f.name + '" 파일을 골라 보내세요. ' +
+    var howToSend = function (fs) {
+      return '카톡 채팅방에서 ＋ → 파일 → 다운로드로 들어가 "' + fs.map(function (f) { return f.name; }).join('", "') + '" 파일을 골라 보내세요. ' +
         '또는 내 파일 → 다운로드에서 파일을 길게 누르고 공유를 누르세요.';
     };
     var after = function () { return renderSheet(v); };
-    var bind = function (id, idx) {
+    var bind = function (id, key, label) {
       var btn = document.getElementById(id);
       btn.addEventListener('click', function () {
         btn.disabled = true;
-        ready.then(function (files) {
-          var f = files[idx], label = LABEL[f.name.split('.').pop()];
-          var how = f.name.slice(-5) === '.xlsx' ? Promise.resolve(Export.save(f)) : Export.deliver([f], voyageTitle(v) + ' 승선자명부');
+        ready.then(function (g) {
+          var fs = g[key];
+          var how = key === 'xlsx' ? Promise.resolve(Export.save(fs[0])) : Export.deliver(fs, voyageTitle(v) + ' 승선자명부');
           return how.then(function (how) {
             if (how === 'cancelled') { toast('보내기를 취소했습니다'); return; }
             v.sharedAt = Date.now();
             return DB.put('voyage', v).then(function () {
               if (how === 'shared') { toast(label + (label === 'PDF' ? '를' : '을') + ' 보냈습니다'); return after(); }
               return UI.confirm(label + ' 파일을 다운로드 폴더에 저장했습니다',
-                (label === '엑셀' ? '' : '이 폰에서는 바로 보내기가 안 됩니다. ') + howToSend(f),
+                (key === 'xlsx' ? '' : '이 폰에서는 바로 보내기가 안 됩니다. ') + howToSend(fs),
                 '알겠습니다', 'primary', false).then(after);
             });
           });
         }).catch(function () { toast('파일을 만들지 못했습니다. 다시 눌러 주세요', true); }).then(function () { btn.disabled = false; });
       });
     };
-    bind('send-pdf', 0); bind('send-png', 1); bind('save-xlsx', 2);
+    bind('send-pdf', 'pdf', 'PDF'); bind('send-png', 'png', '사진'); bind('save-xlsx', 'xlsx', '엑셀');
   }
 
   function kb(n) { return n < 1024 ? n + 'B' : (n / 1024).toFixed(n < 10240 ? 1 : 0) + 'KB'; }
 
+  // → { pdf:[파일], png:[쪽마다 파일], xlsx:[파일] }
   function buildFiles(v, list) {
     var base = Export.fileBase(vessel, v);
     return Promise.all([Export.pdf(vessel, v, list), Export.png(vessel, v, list)]).then(function (out) {
-      return [
-        { name: base + '.pdf', type: Export.PDF_MIME, data: out[0] },
-        { name: base + '.png', type: 'image/png', data: out[1] },
-        { name: base + '.xlsx', type: Xlsx.MIME, data: Export.xlsx(vessel, v, list) }
-      ];
+      return {
+        pdf: [{ name: base + '.pdf', type: Export.PDF_MIME, data: out[0] }],
+        png: out[1].map(function (d, i) { return { name: base + (out[1].length > 1 ? '_' + (i + 1) + '쪽' : '') + '.png', type: 'image/png', data: d }; }),
+        xlsx: [{ name: base + '.xlsx', type: Xlsx.MIME, data: Export.xlsx(vessel, v, list) }]
+      };
     });
   }
 

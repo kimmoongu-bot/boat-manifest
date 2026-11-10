@@ -16,6 +16,13 @@
 .sheet-line dt { color: var(--text-muted); font-size: var(--fs-small); padding-top: 2px; }
 .sheet-line dd { margin: 0; }
 .sheet-foot { margin-top: 16px; }
+/* 미리보기 문서 */
+.doc-pages { display: grid; gap: 12px; }
+.doc-page { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); cursor: zoom-in; }
+.doc-pages.zoomed { overflow-x: auto; margin-left: calc(-1 * var(--gutter)); margin-right: calc(-1 * var(--gutter)); padding: 0 var(--gutter); }
+.doc-page.zoom { width: 1190px; max-width: none; cursor: zoom-out; }
+.sheet-people { padding: 12px 16px; background: var(--surface); border-radius: var(--radius); }
+.sheet-people summary { min-height: 40px; display: flex; align-items: center; font-weight: 700; cursor: pointer; }
 .screen > .section-title { margin-top: 32px; }
 
 /* 처음 화면 */
