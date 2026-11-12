@@ -1,6 +1,6 @@
 /* 손님용 화면 */
 /* QR 비밀번호 */
-.pin-input { letter-spacing: .5em; text-align: center; font-size: 28px !important; font-variant-numeric: tabular-nums; }
+.pin-input { -webkit-text-security: disc; text-security: disc; letter-spacing: .5em; text-align: center; font-size: 28px !important; font-variant-numeric: tabular-nums; }
 .pin-big { font-size: 36px !important; min-height: 72px !important; }
 .lock { padding-top: calc(48px + env(safe-area-inset-top)); }
 .lock .btn-ghost { margin-top: 24px; }

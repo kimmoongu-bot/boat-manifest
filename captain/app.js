@@ -115,7 +115,7 @@
         '<h1>' + esc(vessel.name) + '</h1>' +
         '<p class="lead">PIN을 넣어야 승선명부를 볼 수 있습니다.</p>' +
         '<form id="lockf" class="form" novalidate>' +
-          PersonForm.field('pin', 'PIN', '<input id="f-pin" name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="6" class="pin-input">') +
+          PersonForm.field('pin', 'PIN', '<input id="f-pin" name="pin" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" autocomplete="off" maxlength="6" class="pin-input">') +
           '<button class="btn btn-primary" type="submit">열기</button>' +
         '</form>' +
       '</section>'
@@ -277,9 +277,9 @@
         '<h1>' + (has ? 'PIN 바꾸기' : 'PIN 켜기') + '</h1>' +
         '<p class="lead">숫자 4~6자리. 잊어버리면 앱 저장 공간을 지워야 하니 꼭 기억해 두세요.</p>' +
         '<form id="pinf" class="form" novalidate>' +
-          (has ? PersonForm.field('old', '지금 PIN', '<input id="f-old" name="old" type="password" inputmode="numeric" maxlength="6" autocomplete="off" class="pin-input">') : '') +
-          PersonForm.field('pin1', '새 PIN', '<input id="f-pin1" name="pin1" type="password" inputmode="numeric" maxlength="6" autocomplete="off" class="pin-input">') +
-          PersonForm.field('pin2', '새 PIN 한 번 더', '<input id="f-pin2" name="pin2" type="password" inputmode="numeric" maxlength="6" autocomplete="off" class="pin-input">') +
+          (has ? PersonForm.field('old', '지금 PIN', '<input id="f-old" name="old" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" maxlength="6" autocomplete="off" class="pin-input">') : '') +
+          PersonForm.field('pin1', '새 PIN', '<input id="f-pin1" name="pin1" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" maxlength="6" autocomplete="off" class="pin-input">') +
+          PersonForm.field('pin2', '새 PIN 한 번 더', '<input id="f-pin2" name="pin2" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" maxlength="6" autocomplete="off" class="pin-input">') +
           '<button class="btn btn-primary" type="submit">PIN 저장</button>' +
         '</form>' +
         (has ? '<div class="danger-zone"><button class="btn btn-danger" type="button" id="pin-off">PIN 끄기</button>' +

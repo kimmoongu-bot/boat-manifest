@@ -262,7 +262,7 @@
 
   function pinBlock(editing) {
     var pinInput = function (name) {
-      return '<input id="f-' + name + '" name="' + name + '" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" class="pin-input">';
+      return '<input id="f-' + name + '" name="' + name + '" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" pattern="[0-9]*" maxlength="4" autocomplete="off" class="pin-input">';
     };
     return '<fieldset class="group-box"><legend>QR 비밀번호</legend>' +
       '<p class="hint">' + (editing ? '바꿀 때만 넣으세요. 비워 두면 지금 비밀번호 그대로입니다.'
@@ -295,7 +295,7 @@
         '<h1>승선QR</h1>' +
         '<p class="lead">' + esc(state.me.name) + ' 님, QR 비밀번호 4자리를 넣어 주세요.</p>' +
         '<form id="lockf" class="form" novalidate>' +
-          PersonForm.field('pin', '비밀번호', '<input id="f-pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" class="pin-input pin-big">') +
+          PersonForm.field('pin', '비밀번호', '<input id="f-pin" name="pin" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" pattern="[0-9]*" maxlength="4" autocomplete="off" class="pin-input pin-big">') +
           '<button class="btn btn-primary" type="submit">QR 열기</button>' +
         '</form>' +
         '<button class="btn btn-ghost" type="button" id="forgot">비밀번호를 잊었어요</button>' +

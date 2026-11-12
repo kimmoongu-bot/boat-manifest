@@ -97,7 +97,7 @@
   background: var(--surface); font-weight: 700; cursor: pointer;
 }
 .chip:active { background: var(--primary-soft); }
-.pin-input { letter-spacing: .4em; font-size: 28px !important; text-align: center; }
+.pin-input { -webkit-text-security: disc; text-security: disc; letter-spacing: .4em; font-size: 28px !important; text-align: center; }
 .lock { padding-top: 64px; }
 
 /* 연속 스캔 */
