@@ -359,8 +359,21 @@
       return 'downloaded';
     });
   }
-  // 공유를 시도하지 않고 바로 다운로드 폴더에 저장
-  function save(f) { download(new File([f.data], f.name, { type: f.type })); return 'downloaded'; }
+  // 엑셀 저장: 저장 위치 고르기 창이 되는 브라우저(PC 크롬·엣지 등)는 그 창으로 → 'saved' | 'cancelled'
+  // 안 되는 곳(안드로이드 크롬 등)은 다운로드 폴더로 → 'downloaded'
+  function save(f) {
+    var file = new File([f.data], f.name, { type: f.type });
+    if (typeof root.showSaveFilePicker !== 'function') { download(file); return Promise.resolve('downloaded'); }
+    var ext = (f.name.match(/\.[^.]+$/) || ['.xlsx'])[0];
+    var accept = {}; accept[f.type || 'application/octet-stream'] = [ext];
+    return root.showSaveFilePicker({ suggestedName: f.name, types: [{ description: ext === '.xlsx' ? '엑셀 파일' : '파일', accept: accept }] })
+      .then(function (h) { return h.createWritable(); })
+      .then(function (w) { return w.write(file).then(function () { return w.close(); }); })
+      .then(function () { return 'saved'; }, function (e) {
+        if (e && e.name === 'AbortError') return 'cancelled';   // 창에서 취소
+        download(file); return 'downloaded';                     // 그 밖의 실패는 다운로드로
+      });
+  }
   function download(file) {
     var url = URL.createObjectURL(file), a = document.createElement('a');
     a.href = url; a.download = file.name;

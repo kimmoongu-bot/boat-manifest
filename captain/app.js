@@ -656,6 +656,8 @@
 
   // 확정한 명부: 파일을 미리 만들어 둔다(공유는 버튼을 누른 직후에만 허락되므로)
   // PDF·사진은 공유 창으로(안 되면 다운로드), 엑셀은 폰 크롬이 공유를 막으므로 바로 다운로드 폴더에 저장
+  // 폰 크롬은 앱이 저장 위치 창을 열 수 없어서, 크롬 설정으로 고르게 안내
+  var PICK_TIP = '저장할 때마다 위치를 고르려면: 크롬 오른쪽 위 ⋮ → 설정 → 다운로드 → "다운로드 위치 묻기"를 켜 두세요.';
   function bindSend(v, list) {
     var ready = buildFiles(v, list);
     var st = document.getElementById('send-state');
@@ -675,14 +677,15 @@
         btn.disabled = true;
         ready.then(function (g) {
           var fs = g[key];
-          var how = key === 'xlsx' ? Promise.resolve(Export.save(fs[0])) : Export.deliver(fs, voyageTitle(v) + ' 승선자명부');
+          var how = key === 'xlsx' ? Export.save(fs[0]) : Export.deliver(fs, voyageTitle(v) + ' 승선자명부');
           return how.then(function (how) {
-            if (how === 'cancelled') { toast('보내기를 취소했습니다'); return; }
+            if (how === 'cancelled') { toast(key === 'xlsx' ? '저장을 취소했습니다' : '보내기를 취소했습니다'); return; }
             v.sharedAt = Date.now();
             return DB.put('voyage', v).then(function () {
               if (how === 'shared') { toast(label + (label === 'PDF' ? '를' : '을') + ' 보냈습니다'); return after(); }
+              if (how === 'saved') { toast('엑셀을 고른 위치에 저장했습니다'); return after(); }
               return UI.confirm(label + ' 파일을 다운로드 폴더에 저장했습니다',
-                (key === 'xlsx' ? '' : '이 폰에서는 바로 보내기가 안 됩니다. ') + howToSend(fs),
+                (key === 'xlsx' ? '' : '이 폰에서는 바로 보내기가 안 됩니다. ') + howToSend(fs) + (key === 'xlsx' ? ' ' + PICK_TIP : ''),
                 '알겠습니다', 'primary', false).then(after);
             });
           });
@@ -844,8 +847,12 @@
               .sort(function (a, c) { return a.voyage.date < c.voyage.date ? -1 : a.voyage.date > c.voyage.date ? 1 : a.voyage.no - c.voyage.no; });
             if (!items.length) { toast(m.replace('-', '년 ') + '월에 확정한 명부가 없습니다'); return; }
             var name = (m + '_전체_' + vessel.name).replace(/[\\\/:*?"<>|\s]+/g, '_') + '.xlsx';
-            Export.deliver([{ name: name, type: Xlsx.MIME, data: Export.monthXlsx(vessel, m, items) }], m + ' 승선자명부')
-              .then(function (how) { if (how !== 'cancelled') toast(items.length + '개 항차를 엑셀 한 파일로 ' + (how === 'shared' ? '보냈습니다' : '저장했습니다')); });
+            Export.save({ name: name, type: Xlsx.MIME, data: Export.monthXlsx(vessel, m, items) })
+              .then(function (how) {
+                if (how === 'cancelled') { toast('저장을 취소했습니다'); return; }
+                if (how === 'saved') { toast(items.length + '개 항차를 엑셀 한 파일로 저장했습니다'); return; }
+                UI.confirm('엑셀 파일을 다운로드 폴더에 저장했습니다', items.length + '개 항차를 "' + name + '" 한 파일로 저장했습니다. ' + PICK_TIP, '알겠습니다', 'primary', false);
+              });
           });
         });
       });
