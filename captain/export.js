@@ -233,6 +233,12 @@
         doc.registerFontkit(root.fontkit);
         doc.setTitle(fileBase(vessel, voyage));
         doc.setCreator('승선명부 앱');
+        // 인쇄할 때 A4 그대로: 크기 맞춤(축소·확대) 끄고, 용지는 PDF 크기(A4)에 맞는 걸 고르게 한다
+        try {
+          var vp = doc.catalog.getOrCreateViewerPreferences();
+          vp.setPrintScaling(L.PrintScaling.None);
+          vp.setPickTrayByPDFSize(true);
+        } catch (e) { /* 설정을 못 넣어도 PDF 자체는 A4 */ }
         // 서식에 쓰는 글자만 남긴 글꼴을 만들어 통째로 심는다
         var text = formText(vessel, voyage, passengers);
         return Promise.all([FontSubset.subset(fb[2], fb[0], text), FontSubset.subset(fb[2], fb[1], text)]).then(function (sub) {
