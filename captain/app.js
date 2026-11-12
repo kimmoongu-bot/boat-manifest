@@ -395,19 +395,27 @@
   }
 
   var SOURCE = { camera: 'QR', image: '사진', manual: '직접', merge: '합침' };
+  var rowNo = {}, crewNo = {}, justStamped = null;   // 명부(PDF) 번호, 방금 찍은 도장
+  function numberRows(v, list) {
+    rowNo = {}; crewNo = {};
+    Export.manifestRows(v, list).forEach(function (r) {
+      if (r.id != null) rowNo[r.id] = r.no; else if (r.cidx != null) crewNo[r.cidx] = r.no;
+    });
+  }
+  function noCell(n) { return '<span class="row-no num" aria-label="명부 ' + (n || '-') + '번">' + (n || '–') + '</span>'; }
   function personRow(v, p, res) {
     var age = BMQR.age(p.birth, Rules.dateOf(v.date));
     var warns = (res.byPerson[p.id] || []).map(function (k) { return '<span class="warn-tag">⚠ ' + Rules.LABEL[k] + '</span>'; }).join('');
     var locked = v.status === 'confirmed';
     var check = p.excluded ? '<span class="idcheck idcheck-off">제외</span>'
-      : '<button type="button" class="idcheck' + (p.idCheckedAt ? ' on' : '') + '" data-check="' + p.id + '"' + (locked ? ' disabled' : '') + ' aria-pressed="' + !!p.idCheckedAt + '">' +
-        (p.idCheckedAt ? '✓<small class="num">' + fmtTime(p.idCheckedAt) + '</small>' : '신분증<br>확인') + '</button>';
-    return '<li class="row row-pax' + (p.excluded ? ' excluded' : '') + '">' + check +
+      : '<button type="button" class="idcheck' + (p.idCheckedAt ? ' on' : '') + (p.idCheckedAt && justStamped === p.id ? ' stamp-in' : '') + '" data-check="' + p.id + '"' + (locked ? ' disabled' : '') + ' aria-pressed="' + !!p.idCheckedAt + '">' +
+        (p.idCheckedAt ? '<b>확인</b><small class="num">' + fmtTime(p.idCheckedAt) + '</small>' : '신분증<br>확인') + '</button>';
+    return '<li class="row row-pax' + (p.excluded ? ' excluded' : '') + '">' + noCell(p.excluded ? null : rowNo[p.id]) + check +
       '<a class="row-body" href="#/v/' + encodeURIComponent(v.id) + '/p/' + p.id + '">' +
         '<span class="row-main"><b>' + esc(p.name) + '</b>' +
           '<span class="row-age num">' + (age == null ? '' : '만 ' + age + '세') + ' · ' + esc(p.sex) + '</span>' +
           '<span class="tag">' + (p.excluded ? '승선 제외' : (SOURCE[p.source] || '')) + '</span></span>' +
-        '<span class="row-sub num">' + fmtBirth(p.birth) + ' · ' + esc(p.phone) + '</span>' +
+        '<span class="row-sub num"><span class="nw">' + fmtBirth(p.birth) + '</span> · <span class="nw">' + esc(p.phone) + '</span></span>' +
         (warns ? '<span class="warn-tags">' + warns + '</span>' : '') +
       '</a></li>';
   }
@@ -442,6 +450,7 @@
     return DB.passengers(v.id).then(function (list) {
       var res = Rules.check(vessel, v, list);
       var rows = buildRows(list);
+      numberRows(v, list);
       var locked = v.status === 'confirmed';
       var allChecked = res.needCheck > 0 && res.checked === res.needCheck;
       var vid = encodeURIComponent(v.id);
@@ -449,8 +458,9 @@
         '<section class="screen">' +
           '<a class="back" href="#/">← 오늘 항차</a>' +
           '<h1>' + voyageTitle(v) + '</h1>' +
-          (locked ? '<div class="confirmed-box"><p><b>✓ 명부 확정</b> <span class="num">' + Export.dateTime(v.confirmedAt) + '</span></p>' +
-            '<p class="hint">' + (v.sharedAt ? '보낸 시각 ' + Export.dateTime(v.sharedAt) : '<b class="text-warn">아직 보내지 않았습니다(미전송)</b>') + '</p></div>' : '') +
+          (locked ? '<div class="confirmed-box"><span class="stamp-mini" aria-hidden="true">확정</span><div>' +
+            '<p><b>명부 확정</b> <span class="num">' + Export.dateTime(v.confirmedAt) + '</span></p>' +
+            '<p class="hint">' + (v.sharedAt ? '보낸 시각 ' + Export.dateTime(v.sharedAt) : '<b class="text-warn">아직 보내지 않았습니다(미전송)</b>') + '</p></div></div>' : '') +
           countBar(v, res, list) +
           warnBox(res) +
           '<div class="actions-row"><a class="btn btn-secondary" href="#/v/' + vid + '/sheet">미리보기</a>' +
@@ -471,9 +481,9 @@
           }).join('') + '</ul>' : '<p class="empty">아직 등록된 승객이 없습니다. QR 스캔을 눌러 손님 QR을 찍으세요.</p>') +
           '<h2 class="section-title">선장·선원 <span class="num">' + (v.crew || []).length + '</span>명</h2>' +
           '<p class="hint">명부 맨 위에 자동으로 들어갑니다.</p>' +
-          ((v.crew || []).length ? '<ul class="rows">' + v.crew.map(function (c) {
-            return '<li class="row"><span class="row-main"><b>' + esc(c.name) + '</b><span class="tag">' + esc(c.role) + '</span></span>' +
-              '<span class="row-sub num">' + fmtBirth(c.birth) + ' · ' + esc(c.phone) + '</span></li>';
+          ((v.crew || []).length ? '<ul class="rows">' + v.crew.map(function (c, i) {
+            return '<li class="row row-crew">' + noCell(crewNo[i]) + '<span class="row-body"><span class="row-main"><b>' + esc(c.name) + '</b><span class="tag">' + esc(c.role) + '</span></span>' +
+              '<span class="row-sub num">' + fmtBirth(c.birth) + ' · ' + esc(c.phone) + '</span></span></li>';
           }).join('') + '</ul>' : '<a class="notice notice-warn notice-link" href="#/crew/new">선장·선원이 없습니다. 설정에서 추가해 주세요 ›</a>') +
           (locked ? '<div class="danger-zone"><button class="btn btn-secondary" id="unlock" type="button">' + (vessel.pinHash ? '확정 풀기 (PIN)' : '확정 풀기') + '</button>' +
             '<p class="hint">고칠 것이 있을 때만 푸세요. 다시 확정하면 새로 보내야 합니다.</p></div>' : '') +
@@ -494,8 +504,9 @@
           p.idCheckedAt = p.idCheckedAt ? null : Date.now();
           DB.put('passenger', p).then(function () {
             if (p.idCheckedAt) Scanner.feedback('ok');
+            justStamped = p.idCheckedAt ? p.id : null;   // 방금 찍은 도장만 꾹 찍히는 움직임
             var y = window.scrollY;
-            renderVoyage(v).then(function () { window.scrollTo(0, y); });
+            renderVoyage(v).then(function () { justStamped = null; window.scrollTo(0, y); });
           });
         });
       });

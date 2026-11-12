@@ -38,7 +38,7 @@
     (voyage.crew || []).map(function (c, i) { return { c: c, i: i }; })
       .sort(function (a, b) { return roleRank(a.c.role) - roleRank(b.c.role) || a.i - b.i; })
       .forEach(function (x) { var c = x.c;
-      rows.push({ no: ++n, kind: c.role, name: c.name, birth: c.birth, sex: c.sex, addr: c.addr, phone: c.phone, license: c.license || '',
+      rows.push({ no: ++n, cidx: x.i, kind: c.role, name: c.name, birth: c.birth, sex: c.sex, addr: c.addr, phone: c.phone, license: c.license || '',
         emer: '-', group: '-', idcheck: '-' });
     });
     var active = passengers.filter(function (p) { return !p.excluded; });
@@ -59,7 +59,7 @@
     });
     order.forEach(function (p) {
       var size = p.grp ? active.filter(function (q) { return q.grp === p.grp; }).length : 0;
-      rows.push({ no: ++n, kind: '승객', name: p.name, birth: p.birth, sex: p.sex, addr: p.addr, phone: p.phone,
+      rows.push({ no: ++n, id: p.id, kind: '승객', name: p.name, birth: p.birth, sex: p.sex, addr: p.addr, phone: p.phone,
         emer: (p.emerName + ' ' + p.emerPhone).trim(),
         group: p.grp ? reps[p.grp].name + ' 일행 (' + size + '명)' : '-',
         idcheck: p.idCheckedAt ? dateTime(p.idCheckedAt) : '확인 안 함' });

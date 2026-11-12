@@ -12,7 +12,7 @@
     main { max-width: 560px; margin: 0 auto; padding: 40px 16px 32px; display: grid; gap: 16px; }
     .app-mark { width: 64px; height: 64px; display: block; }
     p { color: var(--text-muted); }
-    .choice { display: grid; grid-template-columns: 48px 1fr; gap: 4px 14px; align-items: center; padding: 18px 16px; background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; color: var(--text); }
+    .choice { display: grid; grid-template-columns: 48px 1fr; gap: 4px 14px; align-items: center; padding: 18px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); text-decoration: none; color: var(--text); }
     .choice svg { grid-row: 1 / span 2; width: 48px; height: 48px; }
     .choice b { font-size: var(--fs-sub); color: var(--primary); line-height: 1.35; }
     .choice span { color: var(--text-muted); }
@@ -27,11 +27,11 @@
 </head>
 <body>
   <main>
-    <svg class="app-mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#0B3A5B"/><path d="M14 36h36l-5 9H19z" fill="#fff"/><path d="M31 14v20h-13z" fill="#fff"/><path d="M34 18v16h10z" fill="#DCE8F1"/><path d="M10 50c4 0 4-2.5 8-2.5s4 2.5 8 2.5 4-2.5 8-2.5 4 2.5 8 2.5 4-2.5 8-2.5 4 2.5 6 2.5" fill="none" stroke="#C2410C" stroke-width="3" stroke-linecap="round"/></svg>
+    <svg class="app-mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="6" fill="#0B3A5B"/><path d="M14 36h36l-5 9H19z" fill="#fff"/><path d="M31 14v20h-13z" fill="#fff"/><path d="M34 18v16h10z" fill="#DCE8F1"/><path d="M10 50c4 0 4-2.5 8-2.5s4 2.5 8 2.5 4-2.5 8-2.5 4 2.5 8 2.5 4-2.5 8-2.5 4 2.5 6 2.5" fill="none" stroke="#C2410C" stroke-width="3" stroke-linecap="round"/></svg>
     <h1>낚시배 승선명부</h1>
     <p>누가 쓰시나요?</p>
-    <a class="choice" href="guest/"><svg aria-hidden="true" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#0B3A5B"/><rect x="12" y="12" width="40" height="40" rx="4" fill="#fff"/><path d="M16 16h12v12H16zM36 16h12v12H36zM16 36h12v12H16z" fill="#0B3A5B"/><path d="M19 19h6v6h-6zM39 19h6v6h-6zM19 39h6v6h-6z" fill="#fff"/><path d="M20.5 20.5h3v3h-3zM40.5 20.5h3v3h-3zM20.5 40.5h3v3h-3z" fill="#0B3A5B"/><circle cx="42" cy="42" r="5" fill="#C2410C"/></svg><b>배를 타는 손님 — 승선QR</b><span>내 승선 QR을 만들어 폰에 저장합니다</span></a>
-    <a class="choice choice-captain" href="captain/"><svg aria-hidden="true" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#C2410C"/><rect x="14" y="12" width="36" height="44" rx="4" fill="#fff"/><rect x="25" y="8" width="14" height="8" rx="2" fill="#0B3A5B"/><g fill="none" stroke="#0B3A5B" stroke-width="2.5"><rect x="19" y="21" width="7" height="7"/><rect x="19" y="32" width="7" height="7"/><rect x="19" y="43" width="7" height="7"/></g><path d="M30 24.5h14M30 35.5h14M30 46.5h14" stroke="#0B3A5B" stroke-width="3"/></svg><b>선장·사무실 — 승선명부</b><span>손님 QR을 찍어 오늘 승선자명부를 만듭니다</span></a>
+    <a class="choice" href="guest/"><svg aria-hidden="true" viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="#0B3A5B"/><rect x="12" y="12" width="40" height="40" rx="4" fill="#fff"/><path d="M16 16h12v12H16zM36 16h12v12H36zM16 36h12v12H16z" fill="#0B3A5B"/><path d="M19 19h6v6h-6zM39 19h6v6h-6zM19 39h6v6h-6z" fill="#fff"/><path d="M20.5 20.5h3v3h-3zM40.5 20.5h3v3h-3zM20.5 40.5h3v3h-3z" fill="#0B3A5B"/><circle cx="42" cy="42" r="5" fill="#C2410C"/></svg><b>배를 타는 손님 — 승선QR</b><span>내 승선 QR을 만들어 폰에 저장합니다</span></a>
+    <a class="choice choice-captain" href="captain/"><svg aria-hidden="true" viewBox="0 0 64 64"><rect width="64" height="64" rx="8" fill="#C2410C"/><rect x="14" y="12" width="36" height="44" rx="4" fill="#fff"/><rect x="25" y="8" width="14" height="8" rx="2" fill="#0B3A5B"/><g fill="none" stroke="#0B3A5B" stroke-width="2.5"><rect x="19" y="21" width="7" height="7"/><rect x="19" y="32" width="7" height="7"/><rect x="19" y="43" width="7" height="7"/></g><path d="M30 24.5h14M30 35.5h14M30 46.5h14" stroke="#0B3A5B" stroke-width="3"/></svg><b>선장·사무실 — 승선명부</b><span>손님 QR을 찍어 오늘 승선자명부를 만듭니다</span></a>
     <section class="howto">
       <h2>선장님, 처음 쓰는 순서</h2>
       <ol>

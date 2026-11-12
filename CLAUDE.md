@@ -111,10 +111,14 @@ tools/              개발용 스크립트 (serve.mjs 로컬 서버, make-test-q
 
 ## 디자인
 - 바다 햇빛·50~60대 기준: 본문 18px, 버튼 높이 60px(스캔 버튼 72px), 밝은 배경 + 진한 글자(대비 7:1 이상 목표). 폰트 Pretendard → 시스템 한글 폰트
-- 색 토큰: 깊은 바다 남색 `--primary #0B3A5B` 하나만 포인트, 경고는 부표 주황 `--warn #C2410C`, 위험 `--danger #B91C1C`. 모서리 12px 통일
+- 콘셉트 "장부·도장": 종이 승선자명부를 폰으로 옮긴 느낌. 종이 바탕 `--bg #F6F3EA`, 카드 `--surface #FFFDF7` + 1px `--border #C9C3B4`(그림자 없음), 먹색 글자 `--text #1B2A33`, 보조 `#4A5A63`, 모서리 `--radius 3px`(딱지 2px), 화면 제목 아래 2px 먹선
+- 입력칸은 밑줄 장부 칸(옅은 바탕 `--field-bg` + 아래 선 1.5px `--line`, 포커스 남색 2.5px). 이름 짧은 한 줄 칸은 폭 360px 이상에서 "이름 | 값" 줄(`.field-row`, person-form.js 가 붙임)
+- 버튼은 각진 3px: 주 버튼 남색 채움, 보조·위험은 투명 + 1.5px 테두리(`--bw`). 선택 버튼·PIN 칸은 1.5px 먹선 체크 칸
+- 신분증 확인 = 둥근 도장(인주색 `--stamp #B4321F`, -8도). 찍으면 채운 도장 + "확인" + 시각, 0.15초 찍히는 움직임. 확정 카드는 작은 "확정" 도장 + 날짜. 승객·선원 목록은 장부 줄(가로선) + 왼쪽 명부 번호(PDF 번호와 같음, Export.manifestRows 의 id/cidx)
+- 색 토큰: 깊은 바다 남색 `--primary #0B3A5B` 하나만 포인트, 경고는 부표 주황 `--warn #C2410C`, 위험 `--danger #B91C1C`
 - 입력은 큰 칸 + 숫자 키패드(생년월일 8자리·전화번호 자동 하이픈), 성별은 큰 세그먼트 버튼
-- 색·크기는 `shared/base.css` 의 `:root` 변수 한 곳에서: 작은 주황 글자(딱지·미전송) `--warn-text #9A3412`, 연초록 위 초록 글자 `--success-text #166534`(초록 바탕+흰 글자는 `--success`), 비활성 버튼 `--disabled-bg #DCE8F1` / `--disabled-text #3D4B57`
+- 색·크기는 `shared/base.css` 의 `:root` 변수 한 곳에서: 작은 주황 글자(딱지·미전송) `--warn-text #9A3412`, 연초록 위 초록 글자 `--success-text #166534`(초록 바탕+흰 글자는 `--success`), 비활성 버튼 `--disabled-bg #E4DFD2` / `--disabled-text #4A5A63`
 - 글자 크기 4단계: 본문 `--fs-body` 18 / 소제목 `--fs-sub` 21 / 화면 제목 `--fs-title` 26 / 버튼 `--fs-btn` 20 (보조 설명 16, 딱지 15). 새 화면에 19·22px 같은 값을 쓰지 않는다
 - 비밀번호(PIN) 칸은 `UI.pinInput(id, name, 자릿수, 큰칸)` 공통 부품: 네모 칸 + 투명 입력칸(type=text, 숫자 키패드). 코드로 값을 지우면 `UI.pinSync(input)` 호출
 - 하단 고정 버튼(.bottom-bar) 높이는 ui.js 가 재서 `--bar-h` 로 → `.screen` 아래 여백이 그만큼만
-- 링크는 남색, 글 속 링크는 `.text-link`(터치 높이 44px). 묶음 상자는 연한 카드(`.group-card`)
+- 링크는 남색, 글 속 링크는 `.text-link`(터치 높이 44px). 묶음 상자·동의 영역은 종이 카드(`.group-card`, `.consent`)

@@ -6,7 +6,7 @@
 .sheet-head { padding: 12px 16px; background: var(--surface); border-radius: var(--radius); border-left: 6px solid var(--primary); }
 .sheet-head p { font-size: var(--fs-small); }
 .sheet-list { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 12px; }
-.sheet-row { padding: 12px 16px; background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); }
+.sheet-row { padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 .sheet-crew { background: var(--primary-soft); border-color: transparent; }
 .sheet-title { display: flex; align-items: center; gap: 12px; }
 .sheet-title b { font-size: 21px; }
@@ -36,12 +36,12 @@
 .home-head .hint { margin-top: 0; }
 .head-link {
   flex: none; display: grid; place-items: center; min-width: 72px; min-height: 48px; padding: 0 12px;
-  border: 2px solid var(--primary); border-radius: var(--radius); color: var(--primary); font-weight: 700; text-decoration: none;
+  border: var(--bw) solid var(--primary); border-radius: var(--radius); color: var(--primary); font-weight: 700; text-decoration: none;
 }
 .voyage-list { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 12px; }
 .voyage-card {
   display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center;
-  padding: 16px; min-height: 88px; background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
+  padding: 16px; min-height: 88px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
   color: var(--text); text-decoration: none;
 }
 .voyage-card:active { background: var(--primary-soft); }
@@ -68,11 +68,11 @@
 .file-result { padding: 12px 16px; background: var(--surface); border-radius: var(--radius); border-left: 6px solid var(--primary); font-weight: 500; }
 
 /* 명단 */
-.rows { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.rows { list-style: none; padding: 0; margin: 0; display: grid; gap: 0; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .screen > .rows { margin-top: 12px; }
 .row, .row-link {
   display: grid; gap: 2px; padding: 12px 16px; min-height: 64px;
-  background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
+  background: transparent; border: 0; border-radius: 0;
   color: var(--text); text-decoration: none;
 }
 .row-main { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
@@ -150,22 +150,12 @@
 .warn-box-title { font-weight: 700; color: var(--warn-text); }
 .warn-box ul { margin: 4px 0 0; padding-left: 20px; }
 .warn-box li { font-weight: 500; }
-.confirmed-box { padding: 12px 16px; background: var(--success-soft); border-left: 6px solid var(--success); border-radius: var(--radius); }
-.confirmed-box b { color: var(--success-text); }
+
+
 .confirmed-box b.text-warn { color: var(--warn-text); }
 
 .row-pax { display: flex; align-items: stretch; gap: 12px; padding: 8px; }
 .row-body { flex: 1; display: grid; gap: 2px; padding: 4px 8px 4px 0; color: var(--text); text-decoration: none; min-width: 0; }
-.idcheck {
-  flex: none; width: 76px; min-height: 64px; border-radius: 10px; cursor: pointer;
-  border: 2px solid var(--warn); background: var(--warn-soft); color: var(--warn-text);
-  font-size: 15px; font-weight: 700; line-height: 1.3;
-}
-.idcheck.on { border-style: solid; background: var(--success); border-color: var(--success); color: #fff; font-size: 24px; display: grid; place-items: center; }
-.idcheck.on small { font-size: 14px; font-weight: 500; }
-.idcheck:disabled { cursor: default; }
-.idcheck:disabled:not(.on) { border-color: var(--border); color: var(--text-muted); }
-.idcheck-off { display: grid; place-items: center; border: 2px solid var(--border); color: var(--text-muted); }
 .row-pax.excluded { opacity: .55; }
 .row-pax.excluded b { text-decoration: line-through; }
 .warn-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
@@ -182,3 +172,49 @@
 .seg-4 .seg-item span { font-size: 18px; }
 
 .danger-zone .btn + .hint + .btn { margin-top: 16px; }
+
+/* ---------- 장부·도장 ---------- */
+/* 장부 줄: 줄 사이 1px 가로선, 왼쪽에 명부 번호 */
+.rows > li + li { border-top: 1px solid var(--border); }
+.row-crew { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 8px; }
+.row-no { flex: none; align-self: center; width: 22px; text-align: right; color: var(--text-muted); font-size: var(--fs-tag); font-weight: 700; }
+.group { padding: 12px 0 0; background: transparent; border-radius: 0; gap: 8px; }
+.group-title { padding: 0 4px; }
+.group .rows { border-left: 3px solid var(--primary-soft); }
+.pax-list { gap: 16px; }
+.pax-list .single + .single { margin-top: -16px; }
+.pax-list .single + .single .rows { border-top: 0; }
+
+/* 17. 신분증 확인 = 둥근 도장(찍기 전) */
+.row-pax { align-items: center; padding: 10px 12px 10px 8px; }
+.idcheck {
+  flex: none; display: grid; place-content: center; width: 64px; height: 64px; min-height: 64px; padding: 0;
+  border: 2.5px solid var(--stamp); border-radius: 50%; background: transparent; color: var(--stamp);
+  font-size: var(--fs-tag); font-weight: 800; line-height: 1.2; transform: rotate(-8deg); cursor: pointer;
+}
+/* 18. 찍힌 도장: 채움 + "확인" + 시각 */
+.idcheck.on { background: var(--stamp); border-color: var(--stamp); color: #fff; font-size: var(--fs-tag); }
+.idcheck.on b { font-size: 17px; font-weight: 800; line-height: 1.1; letter-spacing: .05em; }
+.idcheck.on small { font-size: 12px; font-weight: 600; line-height: 1.2; }
+.idcheck:active { transform: rotate(-8deg) scale(.94); }
+.idcheck.stamp-in { animation: stamp-in .15s ease-out; }
+@keyframes stamp-in { 0% { transform: rotate(-8deg) scale(1.25); opacity: .4; } 100% { transform: rotate(-8deg) scale(1); opacity: 1; } }
+.idcheck:disabled { cursor: default; }
+.idcheck:disabled:not(.on) { border-color: var(--line); color: var(--text-muted); }
+.idcheck-off { border: 1.5px dashed var(--line); background: transparent; color: var(--text-muted); transform: none; }
+
+/* 19. 확정 카드: 작은 붉은 도장 + 날짜 */
+.confirmed-box { display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-left: 1px solid var(--border); border-radius: var(--radius); }
+.confirmed-box b { color: var(--text); }
+.confirmed-box b.text-warn { color: var(--warn-text); }
+.stamp-mini {
+  flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%;
+  border: 2.5px solid var(--stamp); color: var(--stamp); font-size: var(--fs-tag); font-weight: 800; transform: rotate(-8deg);
+}
+
+/* 20. 딱지: 각진 모서리 + 같은 색 테두리 */
+.badge, .tag, .warn-tag { border-radius: var(--radius-tag); border: 1px solid currentColor; }
+.chip { border-radius: var(--radius); border-width: 1px; border-color: var(--line); background: transparent; }
+.nw { white-space: nowrap; }
+.row-pax, .row-crew { gap: 8px; padding-right: 8px; }
+.row-no { width: 18px; }

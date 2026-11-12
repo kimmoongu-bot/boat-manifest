@@ -1,5 +1,5 @@
 /* 손님용 오프라인 캐시. 파일을 고치면 VERSION 을 올린다 */
-var VERSION = 'guest-v13';
+var VERSION = 'guest-v14';
 var FONT_CACHE = 'bm-fonts';
 var FILES = [
   './',

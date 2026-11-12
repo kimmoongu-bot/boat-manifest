@@ -23,7 +23,10 @@
   }
 
   function field(name, label, control, hint) {
-    return '<div class="field" id="wrap-' + name + '">' +
+    // 도움말이 없고 이름이 짧은 한 줄 입력칸만 "이름 | 값" 장부 줄로 (주소·도움말 칸·비밀번호 칸은 이름이 위)
+    var plain = String(label).replace(/<[^>]*>/g, '');
+    var row = !hint && plain.length <= 5 && /^<input /.test(control) && !/type="(checkbox|radio)"/.test(control);
+    return '<div class="field' + (row ? ' field-row' : '') + '" id="wrap-' + name + '">' +
       '<label for="f-' + name + '">' + label + '</label>' + control +
       (hint ? '<p class="hint">' + hint + '</p>' : '') +
       '<p class="err" id="err-' + name + '"></p></div>';

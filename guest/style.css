@@ -39,7 +39,7 @@
 .qr-screen { text-align: center; }
 .qr-screen .back { display: flex; width: max-content; }
 .qr-card {
-  background: #fff; border: 2px solid var(--border); border-radius: var(--radius);
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
   padding: 16px 8px;
 }
 .qr-svg { display: block; width: 100%; max-width: 380px; height: auto; margin: 8px auto 0; }

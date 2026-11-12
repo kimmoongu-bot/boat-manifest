@@ -26,21 +26,24 @@
 .bottom-bar-row { grid-template-columns: 1fr 1fr; }
 .bottom-bar-row > * { max-width: none; }
 .bottom-bar-inline { margin-top: 24px; }
+.bottom-bar { background: var(--bg); border-top-color: var(--border); }
 .btn[hidden] { display: none; }
 
 /* ---------- 입력 ---------- */
 .form { display: grid; gap: 20px; margin-top: 24px; }
 .field { display: grid; gap: 4px; border: 0; padding: 0; margin: 0; min-width: 0; }
-.field label, .field legend { font-weight: 700; font-size: var(--fs-body); padding: 0; }
+.field label, .field legend { font-weight: 600; font-size: var(--fs-small); color: var(--text-muted); padding: 0; }
+.field:focus-within > label { color: var(--primary); }
 .field input, .field textarea {
-  width: 100%; min-height: 60px; padding: 12px 16px;
-  background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
+  width: 100%; min-height: 56px; padding: 12px 12px 10px;
+  background: var(--field-bg); border: 0; border-bottom: 1.5px solid var(--line); border-radius: 0;
   font-size: 20px;
 }
 .field textarea { resize: vertical; line-height: 1.5; }
-.field input:focus, .field textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.field input:focus, .field textarea:focus { outline: none; border-bottom-color: var(--primary); box-shadow: inset 0 -1px 0 var(--primary); }  /* 밑줄 2.5px */
 .field input::placeholder, .field textarea::placeholder { color: #7A8794; }
-.has-err input, .has-err textarea, .has-err .seg-item span { border-color: var(--danger); }
+.has-err input, .has-err textarea { border-bottom-color: var(--danger); box-shadow: inset 0 -1px 0 var(--danger); }
+.has-err .seg-item span { border-color: var(--danger); }
 .err { color: var(--danger); font-weight: 700; font-size: var(--fs-small); }
 .err:empty { display: none; }
 
@@ -49,7 +52,7 @@
 .seg-item input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; pointer-events: none; }
 .seg-item span {
   display: grid; place-items: center; min-height: 60px;
-  background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); border: var(--bw) solid var(--ink); border-radius: var(--radius);
   font-size: var(--fs-sub); font-weight: 700; cursor: pointer;
 }
 .seg-item input:checked + span { background: var(--primary); border-color: var(--primary); color: #fff; }
@@ -57,7 +60,7 @@
 
 .group-box {
   display: grid; gap: 16px; margin: 0; padding: 16px;
-  background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
 .group-box legend { font-weight: 700; font-size: var(--fs-body); padding: 0 8px; }
 .group-box .hint { margin-top: -12px; }
@@ -74,6 +77,7 @@
   font-weight: 700; cursor: pointer;
 }
 .check input { flex: none; width: 28px; height: 28px; margin: 0; accent-color: var(--primary); }
+.check { border: 1px solid var(--border); }
 .check small { display: block; font-weight: 400; font-size: var(--fs-small); color: var(--text-muted); }
 .has-err.consent .check:first-of-type { outline: 2px solid var(--danger); }
 
@@ -116,10 +120,10 @@ h1:focus { outline: none; }
 .pin-cells { display: grid; grid-template-columns: repeat(var(--pin-n), 1fr); gap: 8px; }
 .pin-cells i {
   display: grid; place-items: center; height: 64px;
-  background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); border: var(--bw) solid var(--ink); border-radius: var(--radius);
 }
 .pin-cells i.on::after { content: ""; width: 16px; height: 16px; border-radius: 50%; background: var(--text); }
-.pin-cells i.cur { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.pin-cells i.cur { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
 .pin-boxes-big .pin-cells i { height: 72px; }
 .has-err .pin-cells i { border-color: var(--danger); }
 .pin-dialog-boxes { margin-top: 12px; }
@@ -133,3 +137,16 @@ h1:focus { outline: none; }
 
 /* 하단 고정 버튼 높이만큼만 아래 여백 (--bar-h 는 ui.js 가 잼) */
 .screen, .scan { padding-bottom: calc(var(--bar-h, 0px) + 24px + env(safe-area-inset-bottom)); }
+
+/* ---------- 장부 줄 칸: 폭 360px 이상, 이름 짧은 한 줄 칸은 "이름 | 값" ---------- */
+@media (min-width: 360px) {
+  .field-row { grid-template-columns: 5.5em 1fr; column-gap: 8px; align-items: center; }
+  .field-row > label { grid-column: 1; }
+  .field-row > input { grid-column: 2; }
+  .field-row > .err { grid-column: 2; }
+}
+.scan-head h1 { padding-bottom: 0; border-bottom: 0; }
+.confirm h2 { padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
+/* 묶음 상자·동의 영역도 종이 카드로 */
+.group-card, .consent { background: var(--surface); border: 1px solid var(--border); }
+.consent .check { background: var(--bg); }
