@@ -109,14 +109,20 @@
     return Array.prototype.map.call(a, function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('');
   }
 
-  // PIN 자릿수: 새로 정하는 PIN 은 4자리. pinLen 이 없는 예전 PIN(4~6자리)은 칸 6개, 자동 열기 안 함
+  // PIN 자릿수: 새로 정하는 PIN 은 4자리. pinLen 이 없는 예전 PIN(4~6자리)은 칸 6개
   function pinLen() { return vessel && vessel.pinHash && !vessel.pinLen ? 6 : 4; }
-  // 4자리 PIN 이면 다 넣는 순간 바로 확인
+  // 예전 PIN 이 4자리로 맞으면 다음부터는 칸 4개로 (PIN 자체는 그대로)
+  function upgradePin(value) {
+    if (!vessel.pinLen && value.length === 4) { vessel.pinLen = 4; DB.put('vessel', vessel); }
+  }
+  // 4자리를 넣는 순간 바로 확인. 예전 PIN 은 4·5·6자리째마다 조용히 맞는지 보고 맞으면 연다
   function autoPin(input, onFull) {
     input.addEventListener('input', function () {
       input.value = input.value.replace(/\D/g, '').slice(0, pinLen());
       UI.pinSync(input);
-      if (vessel.pinLen === 4 && input.value.length === 4) onFull();
+      var v = input.value;
+      if (vessel.pinLen === 4) { if (v.length === 4) onFull(); return; }
+      if (v.length >= 4) hashPin(v, vessel.pinSalt).then(function (h) { if (h === vessel.pinHash && input.value === v) onFull(); });
     });
   }
 
@@ -124,7 +130,7 @@
     view(
       '<section class="screen lock">' +
         '<h1>' + esc(vessel.name) + '</h1>' +
-        '<p class="lead">PIN을 넣어야 승선명부를 볼 수 있습니다.</p>' +
+        '<p class="lead">PIN을 넣어야 승선명부를 볼 수 있습니다.' + (pinLen() === 6 ? ' 예전에 정한 PIN을 넣으세요. 4자리면 4칸만 채우면 됩니다.' : '') + '</p>' +
         '<form id="lockf" class="form" novalidate>' +
           PersonForm.field('pin', 'PIN', UI.pinInput('f-pin', 'pin', pinLen(), true)) +
           '<button class="btn btn-primary" type="submit">열기</button>' +
@@ -137,7 +143,7 @@
     f.addEventListener('submit', function (e) {
       e.preventDefault();
       hashPin(f.elements.pin.value, vessel.pinSalt).then(function (h) {
-        if (h === vessel.pinHash) { unlocked = true; route(); }
+        if (h === vessel.pinHash) { upgradePin(f.elements.pin.value); unlocked = true; route(); }
         else { PersonForm.setErr('pin', 'PIN이 맞지 않습니다. 다시 넣어 주세요'); f.elements.pin.value = ''; f.elements.pin.focus(); UI.pinSync(f.elements.pin); }
       });
     });
@@ -719,7 +725,9 @@
         input.value = input.value.replace(/\D/g, '').slice(0, n);
         err.textContent = '';
         UI.pinSync(input);
-        if (vessel.pinLen === 4 && input.value.length === 4) check();
+        var v = input.value;
+        if (vessel.pinLen === 4) { if (v.length === 4) check(); return; }
+        if (v.length >= 4) hashPin(v, vessel.pinSalt).then(function (h) { if (h === vessel.pinHash && input.value === v) check(); });
       }
       function onClick(e) {
         var b = e.target.closest('button');
@@ -730,7 +738,7 @@
       }
       function check() {
         hashPin(input.value, vessel.pinSalt).then(function (h) {
-          if (h === vessel.pinHash) done(true);
+          if (h === vessel.pinHash) { upgradePin(input.value); done(true); }
           else { err.textContent = '⚠ PIN이 맞지 않습니다'; input.value = ''; input.focus(); UI.pinSync(input); }
         });
       }
