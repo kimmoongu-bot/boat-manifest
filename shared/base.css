@@ -12,7 +12,12 @@
   --warn-soft: #FFF1E6;
   --danger: #B91C1C;
   --danger-soft: #FDECEC;
-  --success: #15803D;
+  --success: #15803D;     /* 초록 바탕(흰 글자)용 */
+  --success-text: #166534; /* 연초록 바탕 위 초록 글자 */
+  --success-soft: #E3F4E8;
+  --warn-text: #9A3412;    /* 작은 주황 글자(딱지·미전송) — 큰 제목은 --warn */
+  --disabled-bg: #DCE8F1;  /* 비활성 버튼 */
+  --disabled-text: #3D4B57;
 
   --radius: 12px;
   --gutter: 16px;
@@ -21,6 +26,9 @@
   --fs-small: 16px;
   --fs-title: 26px;
   --fs-sub: 21px;
+  --fs-btn: 20px;
+  --fs-tag: 15px;
+  --touch: 44px;          /* 최소 터치 높이 */
 
   --font: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
 }
@@ -46,6 +54,9 @@ h1, h2, h3 { margin: 0; font-weight: 700; line-height: 1.35; }
 h1 { font-size: var(--fs-title); }
 h2 { font-size: var(--fs-sub); }
 p { margin: 0; }
+a { color: var(--primary); }
+/* 글 속 링크: 위아래 여백으로 터치 높이 44px 이상 */
+.text-link { display: inline-flex; align-items: center; min-height: var(--touch); padding: 10px 0; color: var(--primary); font-weight: 700; text-underline-offset: 4px; }
 
 button, input, select, textarea { font: inherit; color: inherit; letter-spacing: inherit; }
 
@@ -58,12 +69,12 @@ button, input, select, textarea { font: inherit; color: inherit; letter-spacing:
   display: flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; min-height: var(--btn-h); padding: 8px 16px;
   border: 2px solid transparent; border-radius: var(--radius);
-  font-size: 20px; font-weight: 700; text-decoration: none; cursor: pointer;
+  font-size: var(--fs-btn); font-weight: 700; text-decoration: none; cursor: pointer;
   user-select: none;
 }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:active { background: var(--primary-press); }
-.btn-primary:disabled { background: #8FA3B3; cursor: default; }
+.btn-primary:disabled { background: var(--disabled-bg); color: var(--disabled-text); cursor: default; }
 .btn-secondary { background: var(--surface); color: var(--primary); border-color: var(--primary); }
 .btn-secondary:active { background: var(--primary-soft); }
 .btn-ghost { background: transparent; color: var(--primary); min-height: 48px; font-weight: 500; text-decoration: underline; text-underline-offset: 4px; }

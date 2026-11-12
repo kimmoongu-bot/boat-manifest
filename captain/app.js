@@ -115,7 +115,7 @@
         '<h1>' + esc(vessel.name) + '</h1>' +
         '<p class="lead">PIN을 넣어야 승선명부를 볼 수 있습니다.</p>' +
         '<form id="lockf" class="form" novalidate>' +
-          PersonForm.field('pin', 'PIN', '<input id="f-pin" name="pin" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" autocomplete="off" maxlength="6" class="pin-input">') +
+          PersonForm.field('pin', 'PIN', UI.pinInput('f-pin', 'pin', 6, true)) +
           '<button class="btn btn-primary" type="submit">열기</button>' +
         '</form>' +
       '</section>'
@@ -126,7 +126,7 @@
       e.preventDefault();
       hashPin(f.elements.pin.value, vessel.pinSalt).then(function (h) {
         if (h === vessel.pinHash) { unlocked = true; route(); }
-        else { PersonForm.setErr('pin', 'PIN이 맞지 않습니다. 다시 넣어 주세요'); f.elements.pin.value = ''; f.elements.pin.focus(); }
+        else { PersonForm.setErr('pin', 'PIN이 맞지 않습니다. 다시 넣어 주세요'); f.elements.pin.value = ''; f.elements.pin.focus(); UI.pinSync(f.elements.pin); }
       });
     });
   }
@@ -277,9 +277,9 @@
         '<h1>' + (has ? 'PIN 바꾸기' : 'PIN 켜기') + '</h1>' +
         '<p class="lead">숫자 4~6자리. 잊어버리면 앱 저장 공간을 지워야 하니 꼭 기억해 두세요.</p>' +
         '<form id="pinf" class="form" novalidate>' +
-          (has ? PersonForm.field('old', '지금 PIN', '<input id="f-old" name="old" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" maxlength="6" autocomplete="off" class="pin-input">') : '') +
-          PersonForm.field('pin1', '새 PIN', '<input id="f-pin1" name="pin1" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" maxlength="6" autocomplete="off" class="pin-input">') +
-          PersonForm.field('pin2', '새 PIN 한 번 더', '<input id="f-pin2" name="pin2" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" maxlength="6" autocomplete="off" class="pin-input">') +
+          (has ? PersonForm.field('old', '지금 PIN', UI.pinInput('f-old', 'old', 6)) : '') +
+          PersonForm.field('pin1', '새 PIN', UI.pinInput('f-pin1', 'pin1', 6)) +
+          PersonForm.field('pin2', '새 PIN 한 번 더', UI.pinInput('f-pin2', 'pin2', 6)) +
           '<button class="btn btn-primary" type="submit">PIN 저장</button>' +
         '</form>' +
         (has ? '<div class="danger-zone"><button class="btn btn-danger" type="button" id="pin-off">PIN 끄기</button>' +
@@ -332,9 +332,9 @@
         view(
           '<section class="screen">' +
             '<header class="home-head">' +
-              '<div><p class="vessel-name">' + esc(vessel.name) + '</p>' +
-              '<p class="hint">' + esc(vessel.number) + ' · 정원 ' + vessel.capacity + '명 · ' + esc(vessel.deviceName) + '</p></div>' +
+              '<p class="vessel-name">' + esc(vessel.name) + '</p>' +
               '<div class="head-links"><a class="head-link" href="#/history">지난 명부</a><a class="head-link" href="#/settings">설정</a></div>' +
+              '<p class="hint home-meta">' + esc(vessel.number) + ' · 정원 ' + vessel.capacity + '명 · ' + esc(vessel.deviceName) + '</p>' +
             '</header>' +
             '<h1>' + fmtDate(today) + '</h1>' +
             (crew.some(function (c) { return c.role === '선장'; }) ? '' :
@@ -475,7 +475,7 @@
             return '<li class="row"><span class="row-main"><b>' + esc(c.name) + '</b><span class="tag">' + esc(c.role) + '</span></span>' +
               '<span class="row-sub num">' + fmtBirth(c.birth) + ' · ' + esc(c.phone) + '</span></li>';
           }).join('') + '</ul>' : '<a class="notice notice-warn notice-link" href="#/crew/new">선장·선원이 없습니다. 설정에서 추가해 주세요 ›</a>') +
-          (locked ? '<div class="danger-zone"><button class="btn btn-secondary" id="unlock" type="button">확정 풀기 (PIN)</button>' +
+          (locked ? '<div class="danger-zone"><button class="btn btn-secondary" id="unlock" type="button">' + (vessel.pinHash ? '확정 풀기 (PIN)' : '확정 풀기') + '</button>' +
             '<p class="hint">고칠 것이 있을 때만 푸세요. 다시 확정하면 새로 보내야 합니다.</p></div>' : '') +
         '</section>' +
         '<div class="bottom-bar">' +
@@ -684,7 +684,7 @@
     }
     var dlg = document.getElementById('pin-dialog'), input = document.getElementById('pin-dialog-input'), err = document.getElementById('pin-dialog-err');
     document.getElementById('pin-dialog-title').textContent = title;
-    input.value = ''; err.textContent = '';
+    input.value = ''; err.textContent = ''; UI.pinSync(input);
     return new Promise(function (resolve) {
       function done(v) { dlg.removeEventListener('click', onClick); if (dlg.open) dlg.close(); resolve(v); }
       function onClick(e) {
@@ -694,7 +694,7 @@
         if (b.value !== 'ok') return done(false);
         hashPin(input.value, vessel.pinSalt).then(function (h) {
           if (h === vessel.pinHash) done(true);
-          else { err.textContent = '⚠ PIN이 맞지 않습니다'; input.value = ''; input.focus(); }
+          else { err.textContent = '⚠ PIN이 맞지 않습니다'; input.value = ''; input.focus(); UI.pinSync(input); }
         });
       }
       dlg.addEventListener('click', onClick);
@@ -784,8 +784,8 @@
             '<h1>지난 명부</h1>' +
             '<p class="hint">보관 기간 ' + (vessel.retentionMonths || 3) + '개월. 지난 명부는 앱을 열 때 지웁니다.' + (unsent ? ' <b class="text-warn">미전송 ' + unsent + '건</b>' : '') + '</p>' +
             '<div class="actions-row">' +
-              '<button class="btn btn-secondary" type="button" data-month="' + thisMonth + '">이번 달 전체 엑셀</button>' +
-              '<button class="btn btn-secondary" type="button" data-month="' + lastMonth + '">지난달 전체 엑셀</button>' +
+              '<button class="btn btn-secondary" type="button" data-month="' + thisMonth + '">이번 달 엑셀</button>' +
+              '<button class="btn btn-secondary" type="button" data-month="' + lastMonth + '">지난달 엑셀</button>' +
             '</div>' +
             (all.length ? html : '<p class="empty-big">아직 명부가 없습니다.</p>') +
           '</section>'
@@ -960,7 +960,7 @@
         '<form id="mform" class="form" novalidate>' +
           PersonForm.fieldsHtml({}, { auto: false, phoneHint: '휴대전화가 없으면 보호자 번호를 적어 주세요' }) +
           '<div class="bottom-bar bottom-bar-row">' +
-            '<button class="btn btn-secondary" type="submit" value="more">저장하고 한 명 더</button>' +
+            '<button class="btn btn-secondary" type="submit" value="more">한 명 더</button>' +
             '<button class="btn btn-primary" type="submit" value="done">저장</button>' +
           '</div>' +
         '</form>' +

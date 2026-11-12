@@ -16,6 +16,7 @@
       width: 210mm; height: 297mm; margin: 0 auto 24px; padding: 16mm 15mm 12mm;
       background: #fff; color: #000; display: flex; flex-direction: column; overflow: hidden;
       box-shadow: 0 2px 12px rgba(0, 0, 0, .2);
+      zoom: var(--fit, 1);   /* 폰 화면에서는 한 장이 다 보이게 줄임(인쇄는 그대로) */
     }
     .vessel { font-size: 26pt; font-weight: 700; color: var(--primary); line-height: 1.2; }
     .vessel small { font-size: 15pt; font-weight: 500; color: #333; margin-left: 4mm; }
@@ -37,7 +38,7 @@
     @media print {
       html, body { background: #fff; }
       .tools, .warn { display: none !important; }
-      .sheet { margin: 0; box-shadow: none; }
+      .sheet { margin: 0; box-shadow: none; zoom: 1 !important; }
     }
   </style>
 </head>
@@ -72,6 +73,11 @@
   <script src="../shared/bmqr.js"></script>
   <script src="db.js"></script>
   <script>
+    (function fit() {
+      // 화면 폭이 A4(794px)보다 좁으면 줄여서 보여 준다
+      function f() { var w = document.documentElement.clientWidth - 16; document.documentElement.style.setProperty('--fit', w < 794 ? (w / 794).toFixed(4) : 1); }
+      f(); window.addEventListener('resize', f);
+    })();
     (function () {
       var guest = new URL('../guest/', location.href).href;
       var privacy = new URL('../privacy.html', location.href).href;

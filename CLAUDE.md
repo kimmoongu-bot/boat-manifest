@@ -113,3 +113,8 @@ tools/              개발용 스크립트 (serve.mjs 로컬 서버, make-test-q
 - 바다 햇빛·50~60대 기준: 본문 18px, 버튼 높이 60px(스캔 버튼 72px), 밝은 배경 + 진한 글자(대비 7:1 이상 목표). 폰트 Pretendard → 시스템 한글 폰트
 - 색 토큰: 깊은 바다 남색 `--primary #0B3A5B` 하나만 포인트, 경고는 부표 주황 `--warn #C2410C`, 위험 `--danger #B91C1C`. 모서리 12px 통일
 - 입력은 큰 칸 + 숫자 키패드(생년월일 8자리·전화번호 자동 하이픈), 성별은 큰 세그먼트 버튼
+- 색·크기는 `shared/base.css` 의 `:root` 변수 한 곳에서: 작은 주황 글자(딱지·미전송) `--warn-text #9A3412`, 연초록 위 초록 글자 `--success-text #166534`(초록 바탕+흰 글자는 `--success`), 비활성 버튼 `--disabled-bg #DCE8F1` / `--disabled-text #3D4B57`
+- 글자 크기 4단계: 본문 `--fs-body` 18 / 소제목 `--fs-sub` 21 / 화면 제목 `--fs-title` 26 / 버튼 `--fs-btn` 20 (보조 설명 16, 딱지 15). 새 화면에 19·22px 같은 값을 쓰지 않는다
+- 비밀번호(PIN) 칸은 `UI.pinInput(id, name, 자릿수, 큰칸)` 공통 부품: 네모 칸 + 투명 입력칸(type=text, 숫자 키패드). 코드로 값을 지우면 `UI.pinSync(input)` 호출
+- 하단 고정 버튼(.bottom-bar) 높이는 ui.js 가 재서 `--bar-h` 로 → `.screen` 아래 여백이 그만큼만
+- 링크는 남색, 글 속 링크는 `.text-link`(터치 높이 44px). 묶음 상자는 연한 카드(`.group-card`)

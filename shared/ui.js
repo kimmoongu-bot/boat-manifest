@@ -49,5 +49,51 @@
     });
   }
 
-  root.UI = { toast: toast, confirm: confirm };
+  // 비밀번호 네모칸: 진짜 입력칸은 투명하게 위에 깔고, 아래 네모 max 칸에 넣은 자리만큼 ● 를 그린다
+  // (숫자 키패드·입력값 가림 그대로, type=text 라 크롬 "비밀번호 저장" 창이 안 뜸)
+  function pinInput(id, name, max, big) {
+    var cells = '';
+    for (var i = 0; i < max; i++) cells += '<i></i>';
+    return '<div class="pin-boxes' + (big ? ' pin-boxes-big' : '') + '" style="--pin-n:' + max + '">' +
+      '<input id="' + id + '"' + (name ? ' name="' + name + '"' : '') + ' type="text" inputmode="numeric" pattern="[0-9]*" maxlength="' + max + '"' +
+      ' autocomplete="off" data-lpignore="true" spellcheck="false" autocapitalize="off" class="pin-input">' +
+      '<span class="pin-cells" aria-hidden="true">' + cells + '</span></div>';
+  }
+  // 값을 코드로 바꾼 뒤(틀려서 지울 때 등) 네모칸을 다시 그린다
+  function pinSync(input) {
+    var box = input && input.closest && input.closest('.pin-boxes');
+    if (!box) return;
+    var cells = box.querySelectorAll('.pin-cells i');
+    var n = input.value.length, focused = document.activeElement === input;
+    cells.forEach(function (c, i) {
+      c.classList.toggle('on', i < n);
+      c.classList.toggle('cur', focused && i === Math.min(n, cells.length - 1));
+    });
+  }
+  ['input', 'focusin', 'focusout'].forEach(function (ev) {
+    document.addEventListener(ev, function (e) {
+      var t = e.target;
+      if (!t.classList || !t.classList.contains('pin-input')) return;
+      if (ev === 'focusout') setTimeout(function () { pinSync(t); }); else pinSync(t);
+    });   // 버블 단계: 화면 코드가 숫자만 남긴 뒤에 그린다
+  });
+
+  // 하단 고정 버튼 높이를 --bar-h 로 → 화면 아래 여백이 딱 그만큼만 (짧은 화면에 쓸데없는 스크롤 없음)
+  var barQueued = false;
+  function syncBar() {
+    barQueued = false;
+    var h = 0;
+    document.querySelectorAll('.bottom-bar').forEach(function (b) {
+      if (b.getClientRects().length && getComputedStyle(b).position === 'fixed') h = Math.max(h, b.offsetHeight);
+    });
+    document.documentElement.style.setProperty('--bar-h', h + 'px');
+  }
+  function queueBar() { if (!barQueued) { barQueued = true; requestAnimationFrame(syncBar); } }
+  if (typeof MutationObserver === 'function') {
+    new MutationObserver(queueBar).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+  }
+  root.addEventListener('resize', queueBar);
+  queueBar();
+
+  root.UI = { toast: toast, confirm: confirm, pinInput: pinInput, pinSync: pinSync };
 })(window);

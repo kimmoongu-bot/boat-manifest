@@ -47,7 +47,7 @@
       field('phone', '휴대전화', '<input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="' + ac('tel') + '" placeholder="010-0000-0000" maxlength="13" value="' + esc(p.phone) + '">',
         opts.phoneHint || '');
     if (opts.emergency !== false) {
-      html += '<fieldset class="group-box"><legend>비상연락처</legend>' +
+      html += '<fieldset class="group-box group-card"><legend>비상연락처</legend>' +
         '<p class="hint">직계가족 등 휴대전화 (배에 같이 타지 않는 분)</p>' +
         field('emerName', '이름', '<input id="f-emerName" name="emerName" type="text" autocomplete="off" maxlength="30" value="' + esc(p.emerName) + '">') +
         field('emerPhone', '전화번호', '<input id="f-emerPhone" name="emerPhone" type="tel" inputmode="numeric" autocomplete="off" placeholder="010-0000-0000" maxlength="13" value="' + esc(p.emerPhone) + '">') +

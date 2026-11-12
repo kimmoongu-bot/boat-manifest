@@ -262,9 +262,9 @@
 
   function pinBlock(editing) {
     var pinInput = function (name) {
-      return '<input id="f-' + name + '" name="' + name + '" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" pattern="[0-9]*" maxlength="4" autocomplete="off" class="pin-input">';
+      return UI.pinInput('f-' + name, name, 4);
     };
-    return '<fieldset class="group-box"><legend>QR 비밀번호</legend>' +
+    return '<fieldset class="group-box group-card"><legend>QR 비밀번호</legend>' +
       '<p class="hint">' + (editing ? '바꿀 때만 넣으세요. 비워 두면 지금 비밀번호 그대로입니다.'
         : 'QR을 열 때 넣는 숫자 4자리입니다. 폰을 다른 사람이 봐도 내 정보가 보이지 않게 합니다. 잊으면 정보를 지우고 다시 만들어야 합니다.') + '</p>' +
       PersonForm.field('pin1', editing ? '새 비밀번호 (숫자 4자리)' : '비밀번호 (숫자 4자리)', pinInput('pin1')) +
@@ -292,10 +292,11 @@
   function renderLock() {
     view(
       '<section class="screen lock">' +
+        '<svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8-2h2v2h-2v-2zm4 0h4v2h-4v-2zm-4 4h2v4h-2v-4zm4 0h2v2h2v4h-4v-6zm2-2h2v2h-2v-2z"/></svg>' +
         '<h1>승선QR</h1>' +
         '<p class="lead">' + esc(state.me.name) + ' 님, QR 비밀번호 4자리를 넣어 주세요.</p>' +
         '<form id="lockf" class="form" novalidate>' +
-          PersonForm.field('pin', '비밀번호', '<input id="f-pin" name="pin" type="text" inputmode="numeric" data-lpignore="true" spellcheck="false" autocapitalize="off" pattern="[0-9]*" maxlength="4" autocomplete="off" class="pin-input pin-big">') +
+          PersonForm.field('pin', '비밀번호', UI.pinInput('f-pin', 'pin', 4, true)) +
           '<button class="btn btn-primary" type="submit">QR 열기</button>' +
         '</form>' +
         '<button class="btn btn-ghost" type="button" id="forgot">비밀번호를 잊었어요</button>' +
@@ -306,7 +307,7 @@
     function check() {
       hashPin(input.value, state.pin.salt).then(function (h) {
         if (h.hash === state.pin.hash) { unlocked = true; route(); }
-        else { PersonForm.setErr('pin', '비밀번호가 맞지 않습니다. 다시 넣어 주세요'); input.value = ''; input.focus(); }
+        else { PersonForm.setErr('pin', '비밀번호가 맞지 않습니다. 다시 넣어 주세요'); input.value = ''; input.focus(); UI.pinSync(input); }
       });
     }
     input.addEventListener('input', function () {
@@ -367,7 +368,7 @@
       '</dl>' +
       '<p class="consent-note">주민등록번호와 신분증 사진은 받지 않습니다. 배에 탈 때 신분증 실물을 선장님께 보여 주세요.</p>' +
       '<p class="consent-note">동의하지 않을 수 있습니다. 이때는 승선할 때 선장님께 명부를 직접 작성해야 합니다.</p>' +
-      '<p class="consent-note"><a href="../privacy.html" target="_blank" rel="noopener">개인정보 처리방침 전문 보기</a></p>' +
+      '<p class="consent-note"><a class="text-link" href="../privacy.html" target="_blank" rel="noopener">개인정보 처리방침 전문 보기</a></p>' +
       '<label class="check"><input type="checkbox" name="consent"' + (editing ? ' checked' : '') + '><span>위 내용을 읽고 동의합니다</span></label>' +
       '<p class="err" id="err-consent"></p>' +
     '</div>';
@@ -434,7 +435,7 @@
         '<h1>오늘 같이 타는 사람</h1>' +
         '<p class="lead">체크한 사람마다 QR이 한 장씩 만들어집니다. 선장님께 한 장씩 넘기며 보여 주세요.</p>' +
         '<ul class="pick-list">' +
-          '<li class="pick pick-me"><span class="pick-main"><span class="pick-box" aria-hidden="true">✓</span>' +
+          '<li class="pick pick-me"><span class="pick-main"><span class="pick-box on" aria-hidden="true">✓</span>' +
             '<span class="pick-text"><b>' + esc(me.name) + ' (나)</b><span class="num">' + fmtBirth(me.birth) + ' · 대표</span></span></span></li>' +
           rows +
         '</ul>' +
