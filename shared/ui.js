@@ -3,14 +3,14 @@
   'use strict';
 
   var toastTimer;
-  // isError: 빨간색으로 6초 (저장 실패 같은 것)
-  function toast(msg, isError) {
+  // isError: 빨간색으로 6초 (저장 실패 같은 것), ms: 보여 줄 시간(기본 1.5초)
+  function toast(msg, isError, ms) {
     var t = document.getElementById('toast');
     t.textContent = msg;
     t.hidden = false;
     t.classList.toggle('toast-error', !!isError);
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.hidden = true; }, isError ? 6000 : 1500);
+    toastTimer = setTimeout(function () { t.hidden = true; }, ms || (isError ? 6000 : 1500));
   }
 
   // okKind: 'danger'(기본) | 'primary', cancelLabel: 기본 '취소', false 면 취소 버튼 없이 안내만

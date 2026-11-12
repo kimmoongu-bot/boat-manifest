@@ -60,12 +60,22 @@
       return Promise.all(old.map(function (v) { return DB.passengers(v.id); })).then(function (lists) {
         var pax = lists.reduce(function (s, l) { return s + l.length; }, 0);
         var unsent = old.filter(function (v) { return v.status !== 'confirmed' || !v.sharedAt; }).length;
-        return UI.confirm(
+        // 확정했는데 폰에 파일로 안 남긴 명부가 있으면 지우기 전에 먼저 묻는다(저장한 파일은 앱이 지우지 않음)
+        var unsaved = old.filter(function (v) { return v.status === 'confirmed' && !v.savedAt; });
+        var before = !unsaved.length ? Promise.resolve() : UI.confirm(
+          '곧 지워질 명부 ' + unsaved.length + '건이 폰에 저장되지 않았습니다',
+          '보관 기간이 지나 앱에서 지울 명부입니다. 지우기 전에 PDF로 폰에 남겨 둘 수 있습니다. 폰에 저장한 파일은 앱이 지우지 않습니다.',
+          '지금 저장', 'primary', '그냥 지우기'
+        ).then(function (ok) {
+          if (!ok) return;
+          return unsaved.reduce(function (p, v) { return p.then(function () { return savePdfToPhone(v); }); }, Promise.resolve());
+        });
+        return before.then(function () { return UI.confirm(
           '보관 기간(' + months + '개월)이 지난 명부 ' + old.length + '건을 지웁니다',
           cut.replace(/-/g, '.') + ' 이전 명부 ' + old.length + '건(승객 ' + pax + '명)을 이 폰에서 지웁니다. 컴퓨터로 보낸 파일은 그대로 남습니다.' +
             (unsent ? ' 그중 ' + unsent + '건은 아직 보내지 않았습니다. 먼저 보내려면 "나중에"를 누르고 지난 명부에서 보내세요.' : ''),
           old.length + '건 지우기', 'danger', '나중에'
-        ).then(function (ok) {
+        ); }).then(function (ok) {
           if (!ok) return;
           return Promise.all(old.map(function (v) { return DB.deleteVoyage(v.id); })).then(function () {
             toast('지난 명부 ' + old.length + '건을 지웠습니다');
@@ -182,7 +192,14 @@
             '<p class="hint">이 기간이 지난 명부는 앱을 열 때 이 폰에서 지웁니다. 컴퓨터로 보낸 파일은 그대로 남습니다.</p>' +
             '<div class="seg seg-4" id="retention">' + [1, 3, 6, 12].map(function (m) {
               return '<label class="seg-item"><input type="radio" name="retention" value="' + m + '"' + ((v.retentionMonths || 3) === m ? ' checked' : '') + '><span>' + m + '개월</span></label>';
-            }).join('') + '</div>') +
+            }).join('') + '</div>' +
+            '<h2 class="section-title">파일 저장</h2>' +
+            '<label class="check"><input type="checkbox" id="auto-save"' + (v.autoSave === false ? '' : ' checked') + '><span>확정할 때 PDF를 폰에 자동 저장</span></label>' +
+            (CAN_DIR ? '<p class="hint" id="dir-name">저장 폴더: 기본(다운로드)</p>' +
+              '<div class="actions"><button class="btn btn-secondary" type="button" id="pick-dir">저장 폴더 고르기</button>' +
+              '<button class="btn btn-ghost" type="button" id="reset-dir" hidden>기본(다운로드)으로 되돌리기</button></div>' : '') +
+            '<p class="hint">저장한 파일은 폰의 \'내 파일 → 다운로드\'에서 볼 수 있습니다.</p>' +
+            '<p class="hint">파일에는 손님 개인정보가 들어 있습니다. 앱의 보관 기간이 지나도 저장한 파일은 자동으로 지워지지 않으니, 필요 없어지면 직접 지워 주세요.</p>') +
         '</section>'
       );
       app.querySelectorAll('input[name=retention]').forEach(function (r) {
@@ -191,6 +208,29 @@
           DB.put('vessel', vessel).then(function () { toast('보관 기간을 ' + r.value + '개월로 바꿨습니다'); });
         });
       });
+      var as = document.getElementById('auto-save');
+      if (as) as.addEventListener('change', function () {
+        vessel.autoSave = as.checked;
+        DB.put('vessel', vessel).then(function () { toast(as.checked ? '확정할 때 PDF를 폰에 저장합니다' : '자동 저장을 껐습니다'); });
+      });
+      if (CAN_DIR && !first) {
+        var dn = document.getElementById('dir-name'), rd = document.getElementById('reset-dir');
+        var showDir = function () {
+          getSaveDir().then(function (rec) {
+            dn.textContent = rec ? '저장 폴더: ' + rec.name + ' (그 안에 달마다 폴더를 만들어 저장)' : '저장 폴더: 기본(다운로드)';
+            rd.hidden = !rec;
+          });
+        };
+        showDir();
+        document.getElementById('pick-dir').addEventListener('click', function () {
+          window.showDirectoryPicker({ id: 'boat-manifest', mode: 'readwrite' }).then(function (h) {
+            return DB.put('vessel', { id: 'saveDir', handle: h, name: h.name }).then(function () { toast('저장 폴더를 정했습니다 — ' + h.name, false, 3000); showDir(); });
+          }).catch(function (e) { if (!e || e.name !== 'AbortError') toast('폴더를 정하지 못했습니다. 기본(다운로드)으로 저장합니다', true); });
+        });
+        rd.addEventListener('click', function () {
+          DB.del('vessel', 'saveDir').then(function () { toast('기본(다운로드)으로 되돌렸습니다'); showDir(); });
+        });
+      }
       var f = document.getElementById('vform');
       PersonForm.bind(f);
       f.elements.capacity.addEventListener('input', function () { f.elements.capacity.value = f.elements.capacity.value.replace(/\D/g, ''); });
@@ -343,8 +383,12 @@
   // ---------- 처음 화면: 오늘 항차 ----------
   function renderHome() {
     var today = BMQR.today();
-    Promise.all([DB.byIndex('voyage', 'date', today), DB.crewList()]).then(function (r) {
+    Promise.all([DB.byIndex('voyage', 'date', today), DB.crewList(), DB.all('voyage')]).then(function (r) {
       var voyages = r[0].sort(function (a, b) { return a.no - b.no; }), crew = r[1];
+      // 달이 바뀐 뒤 처음 열 때 한 번: 지난달 엑셀을 아직 안 받았으면 안내
+      var lm = prevMonth(), lmVoyages = r[2].filter(function (v) { return v.status === 'confirmed' && monthOf(v.date) === lm; });
+      var remind = lmVoyages.length && !(vessel.monthSaved || {})[lm] && !(vessel.monthAsked || {})[lm];
+      if (remind) { vessel.monthAsked = vessel.monthAsked || {}; vessel.monthAsked[lm] = Date.now(); DB.put('vessel', vessel); }
       return Promise.all(voyages.map(function (v) { return DB.passengers(v.id); })).then(function (lists) {
         var next = voyages.length + 1;
         view(
@@ -355,6 +399,9 @@
               '<p class="hint home-meta">' + esc(vessel.number) + ' · 정원 ' + vessel.capacity + '명 · ' + esc(vessel.deviceName) + '</p>' +
             '</header>' +
             '<h1>' + fmtDate(today) + '</h1>' +
+            (remind ? '<div class="notice month-remind" id="month-remind"><p><b>지난달(' + Number(lm.slice(5)) + '월) 명부를 엑셀로 남겨 두세요.</b></p>' +
+              '<div class="actions-row"><button class="btn btn-primary" type="button" id="remind-save">엑셀 저장</button>' +
+              '<button class="btn btn-secondary" type="button" id="remind-later">나중에</button></div></div>' : '') +
             (crew.some(function (c) { return c.role === '선장'; }) ? '' :
               '<a class="notice notice-warn notice-link" href="#/crew/new"><b>선장 정보가 없습니다.</b> 명부에 들어갈 선장 정보를 먼저 추가해 주세요 ›</a>') +
             (voyages.length ? '<ul class="voyage-list">' + voyages.map(function (v, i) { return voyageCard(v, lists[i]); }).join('') + '</ul>'
@@ -365,11 +412,19 @@
               '<li><b>안내문 인쇄</b>로 QR 안내문을 뽑아 코팅해 배에 붙입니다</li>' +
               '<li>출항 전 <b>항차 열기 → QR 스캔</b>으로 손님 QR을 찍습니다</li>' +
               '<li>신분증을 보며 한 명씩 <b>신분증 확인</b>을 누르고 <b>명부 확정</b></li>' +
-              '<li><b>미리보기 · 보내기</b>에서 PDF·사진을 카톡·메일로 보내 보관합니다(엑셀은 <b>엑셀 저장</b>)</li>' +
+              '<li><b>명부 확정</b>을 누르면 PDF가 폰에 저장됩니다. 필요하면 카톡·메일로도 보내세요</li>' +
             '</ol></details>' +
           '</section>' +
           '<div class="bottom-bar"><button class="btn btn-primary" id="open-voyage" type="button">' + next + '항차 열기</button></div>'
         );
+        var rs = document.getElementById('remind-save'), rl = document.getElementById('remind-later');
+        if (rs) rs.addEventListener('click', function () {
+          rs.disabled = true;
+          Promise.all(lmVoyages.map(function (v) { return DB.passengers(v.id); })).then(function (ls) {
+            return saveMonthXlsx(lm, monthItems(lmVoyages, ls, lm));
+          }).then(function (how) { if (how !== 'cancelled') { var box = document.getElementById('month-remind'); if (box) box.remove(); } else rs.disabled = false; });
+        });
+        if (rl) rl.addEventListener('click', function () { var box = document.getElementById('month-remind'); if (box) box.remove(); });
         document.getElementById('open-voyage').addEventListener('click', function () {
           UI.confirm('오늘 ' + next + '항차를 열까요?', fmtDate(today) + ' ' + next + '항차 명부를 새로 만듭니다.', next + '항차 열기', 'primary').then(function (ok) {
             if (!ok) return;
@@ -388,6 +443,7 @@
     var state = v.status === 'confirmed'
       ? (v.sharedAt ? '<span class="badge badge-ok">확정·보냄</span>' : '<span class="badge badge-warn">확정·미전송</span>')
       : '<span class="badge">진행 중</span>';
+    if (v.status === 'confirmed') state += v.savedAt ? '<span class="badge badge-ok">폰 저장됨</span>' : '<span class="badge badge-warn">미저장</span>';
     return '<li><a class="voyage-card' + (res.over ? ' over' : '') + '" href="#/v/' + encodeURIComponent(v.id) + '">' +
       '<span class="voyage-no">' + (withDate ? fmtDate(v.date).slice(5) + ' ' : '') + v.no + '항차 ' + state + '</span>' +
       '<span class="voyage-meta num">' + fmtTime(v.openedAt) + ' 열림' + (res.items.length ? ' · ⚠ 경고 ' + res.items.length + '건' : '') + '</span>' +
@@ -478,7 +534,8 @@
           '<h1>' + voyageTitle(v) + '</h1>' +
           (locked ? '<div class="confirmed-box"><span class="stamp-mini" aria-hidden="true">확정</span><div>' +
             '<p><b>명부 확정</b> <span class="num">' + Export.dateTime(v.confirmedAt) + '</span></p>' +
-            '<p class="hint">' + (v.sharedAt ? '보낸 시각 ' + Export.dateTime(v.sharedAt) : '<b class="text-warn">아직 보내지 않았습니다(미전송)</b>') + '</p></div></div>' : '') +
+            '<p class="hint">' + (v.sharedAt ? '보낸 시각 ' + Export.dateTime(v.sharedAt) : '<b class="text-warn">아직 보내지 않았습니다(미전송)</b>') + '</p>' +
+            '<p class="hint">' + (v.savedAt ? '폰 저장됨 ' + fmtTime(v.savedAt) : '<b class="text-warn">폰에 저장 안 됨(미저장)</b>') + '</p></div></div>' : '') +
           countBar(v, res, list) +
           warnBox(res) +
           '<div class="actions-row"><a class="btn btn-secondary" href="#/v/' + vid + '/sheet">미리보기</a>' +
@@ -545,7 +602,16 @@
         UI.confirm(res.items.length ? '경고가 있습니다. 확정할까요?' : '명부를 확정할까요?', body, '확정', 'primary').then(function (ok) {
           if (!ok) return;
           v.status = 'confirmed'; v.confirmedAt = Date.now(); v.sharedAt = null;
-          DB.put('voyage', v).then(function () { toast('명부를 확정했습니다'); renderVoyage(v); window.scrollTo(0, 0); });
+          // 다시 확정이면 파일 이름에 _수정1, _수정2 … (예전 파일과 구분)
+          v.confirmCount = (v.confirmCount || 0) + 1; v.rev = v.confirmCount - 1;
+          v.savedAt = null; v.saveName = null; v.saveFailed = false;
+          DB.put('voyage', v).then(function () {
+            toast('명부를 확정했습니다'); renderVoyage(v); window.scrollTo(0, 0);
+            if (vessel.autoSave === false) return;
+            savePdfToPhone(v, list).then(function () {
+              if (location.hash === '#/v/' + encodeURIComponent(v.id)) renderVoyage(v);
+            });
+          });
         });
       });
 
@@ -553,7 +619,7 @@
       if (ub) ub.addEventListener('click', function () {
         askPin('확정 풀기').then(function (ok) {
           if (!ok) return;
-          v.status = 'open'; v.confirmedAt = null; v.sharedAt = null;
+          v.status = 'open'; v.confirmedAt = null; v.sharedAt = null; v.confirmCount = v.confirmCount || 1;
           DB.put('voyage', v).then(function () { toast('확정을 풀었습니다. 고친 뒤 다시 확정하세요'); renderVoyage(v); });
         });
       });
@@ -577,7 +643,8 @@
           '<a class="back" href="#/v/' + vid + '">← ' + v.no + '항차 명단</a>' +
           '<h1>미리보기</h1>' +
           (confirmed
-            ? '<p class="hint">' + (v.sharedAt ? '보낸 시각 ' + Export.dateTime(v.sharedAt) : '<b class="text-warn">아직 보내지 않았습니다(미전송)</b>') + '</p>'
+            ? '<p class="hint">' + (v.sharedAt ? '보낸 시각 ' + Export.dateTime(v.sharedAt) : '<b class="text-warn">아직 보내지 않았습니다(미전송)</b>') +
+              ' · ' + (v.savedAt ? '폰 저장됨 ' + fmtTime(v.savedAt) : '<b class="text-warn">미저장</b>') + '</p>'
             : '<p class="notice notice-warn">아직 확정 전입니다' + (unchecked ? '(신분증 확인 안 한 사람 ' + unchecked + '명)' : '') + '. 확정하면 이 문서 그대로 PDF·사진·엑셀로 보낼 수 있습니다.</p>') +
           (excluded ? '<p class="hint">승선 제외한 ' + excluded + '명은 명부에서 빠집니다.</p>' : '') +
           '<div class="doc-pages" id="doc-pages"><p class="hint">문서를 만드는 중…</p></div>' +
@@ -598,9 +665,10 @@
           '</details>' +
         '</section>' +
         '<div class="bottom-bar">' + (confirmed
-          ? '<div class="send-row send-row-3">' +
+          ? '<div class="send-row send-row-4">' +
               '<button class="btn btn-primary" id="send-pdf" type="button">PDF 보내기</button>' +
               '<button class="btn btn-primary" id="send-png" type="button">사진 보내기</button>' +
+              '<button class="btn btn-secondary" id="save-phone" type="button">폰에 저장</button>' +
               '<button class="btn btn-secondary" id="save-xlsx" type="button">엑셀 저장</button></div>' +
             '<p class="send-state" id="send-state" hidden></p>'
           : '<a class="btn btn-primary" href="#/v/' + vid + '">명단으로 돌아가기</a>') + '</div>'
@@ -656,6 +724,72 @@
 
   // 확정한 명부: 파일을 미리 만들어 둔다(공유는 버튼을 누른 직후에만 허락되므로)
   // PDF·사진은 공유 창으로(안 되면 다운로드), 엑셀은 폰 크롬이 공유를 막으므로 바로 다운로드 폴더에 저장
+  // ---------- 폰에 파일로 남기기 ----------
+  // (가) 설정에서 저장 폴더를 골라 두고 권한이 살아 있으면 그 폴더 아래 YYYY-MM 폴더에
+  // (나) 그 밖에는 일반 다운로드(다운로드 폴더)
+  var CAN_DIR = typeof window.showDirectoryPicker === 'function';
+  function getSaveDir() {
+    if (!CAN_DIR) return Promise.resolve(null);
+    return DB.get('vessel', 'saveDir').then(function (r) { return r && r.handle ? r : null; }, function () { return null; });
+  }
+  function writeToPhone(file, month) {
+    return getSaveDir().then(function (rec) {
+      if (!rec) return null;
+      var h = rec.handle, opt = { mode: 'readwrite' };
+      return Promise.resolve(h.queryPermission ? h.queryPermission(opt) : 'granted').then(function (p) {
+        return p === 'granted' ? p : (h.requestPermission ? h.requestPermission(opt) : 'denied');
+      }).then(function (p) {
+        if (p !== 'granted') return null;
+        return h.getDirectoryHandle(month, { create: true })
+          .then(function (sub) { return sub.getFileHandle(file.name, { create: true }); })
+          .then(function (fh) { return fh.createWritable(); })
+          .then(function (w) { return w.write(file).then(function () { return w.close(); }); })
+          .then(function () { return { how: 'folder', where: h.name + '/' + month }; });
+      }).catch(function (e) { console.warn('폴더 저장 실패 → 다운로드', e); return null; });
+    }).then(function (r) {
+      if (r) return r;
+      Export.download(file);
+      return { how: 'download', where: '다운로드' };
+    });
+  }
+  // 항차 PDF 를 폰에 남기고 항차에 기록(savedAt·saveName / 실패면 saveFailed). 실패해도 확정은 그대로
+  function savePdfToPhone(v, list) {
+    return (list ? Promise.resolve(list) : DB.passengers(v.id)).then(function (l) { return Export.pdf(vessel, v, l); }).then(function (data) {
+      var name = Export.fileBase(vessel, v) + '.pdf';
+      return writeToPhone(new File([data], name, { type: Export.PDF_MIME }), v.date.slice(0, 7)).then(function (r) {
+        v.savedAt = Date.now(); v.saveName = name; v.saveFailed = false;
+        return DB.put('voyage', v).then(function () { toast('폰에 저장했습니다 — ' + name, false, 3500); return r; });
+      });
+    }).catch(function (e) {
+      console.error(e);
+      v.savedAt = null; v.saveFailed = true;
+      return DB.put('voyage', v).then(function () { toast('폰에 저장하지 못했습니다. 미리보기에서 다시 저장하세요.', true); return null; });
+    });
+  }
+  // 월 엑셀: YYYY-MM_선박명_승선명부.xlsx, 받은 달은 기록(지난달 안내를 다시 안 띄움)
+  function monthItems(all, lists, m) {
+    return all.map(function (v, i) { return { voyage: v, passengers: lists[i] }; })
+      .filter(function (it) { return monthOf(it.voyage.date) === m && it.voyage.status === 'confirmed'; })
+      .sort(function (a, c) { return a.voyage.date < c.voyage.date ? -1 : a.voyage.date > c.voyage.date ? 1 : a.voyage.no - c.voyage.no; });
+  }
+  function saveMonthXlsx(m, items) {
+    if (!items.length) { toast(m.replace('-', '년 ') + '월에 확정한 명부가 없습니다'); return Promise.resolve('none'); }
+    var name = Export.monthFileName(vessel, m);
+    return Export.save({ name: name, type: Xlsx.MIME, data: Export.monthXlsx(vessel, m, items) }).then(function (how) {
+      if (how === 'cancelled') { toast('저장을 취소했습니다'); return how; }
+      vessel.monthSaved = vessel.monthSaved || {}; vessel.monthSaved[m] = Date.now();
+      return DB.put('vessel', vessel).then(function () {
+        if (how === 'saved') toast(items.length + '개 항차를 엑셀로 저장했습니다 — ' + name, false, 3500);
+        else UI.confirm('엑셀 파일을 다운로드 폴더에 저장했습니다', items.length + '개 항차를 "' + name + '" 한 파일로 저장했습니다. ' + PICK_TIP, '알겠습니다', 'primary', false);
+        return how;
+      });
+    });
+  }
+  function prevMonth() {
+    var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
+    return d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1);
+  }
+
   // 폰 크롬은 앱이 저장 위치 창을 열 수 없어서, 크롬 설정으로 고르게 안내
   var PICK_TIP = '저장할 때마다 위치를 고르려면: 크롬 오른쪽 위 ⋮ → 설정 → 다운로드 → "다운로드 위치 묻기"를 켜 두세요.';
   function bindSend(v, list) {
@@ -693,6 +827,12 @@
       });
     };
     bind('send-pdf', 'pdf', 'PDF'); bind('send-png', 'png', '사진'); bind('save-xlsx', 'xlsx', '엑셀');
+    // 폰에 저장: 자동 저장이 안 됐거나 다시 받고 싶을 때(설정의 저장 폴더 → 없으면 다운로드)
+    var sp = document.getElementById('save-phone');
+    sp.addEventListener('click', function () {
+      sp.disabled = true;
+      savePdfToPhone(v, list).then(function (r) { if (r) return after(); }).then(function () { sp.disabled = false; });
+    });
   }
 
   function kb(n) { return n < 1024 ? n + 'B' : (n / 1024).toFixed(n < 10240 ? 1 : 0) + 'KB'; }
@@ -700,10 +840,10 @@
   // → { pdf:[파일], png:[쪽마다 파일], xlsx:[파일] }
   function buildFiles(v, list) {
     var base = Export.fileBase(vessel, v);
-    return Promise.all([Export.pdf(vessel, v, list), Export.png(vessel, v, list)]).then(function (out) {
+    return Promise.all([Export.pdf(vessel, v, list), Export.jpg(vessel, v, list)]).then(function (out) {
       return {
         pdf: [{ name: base + '.pdf', type: Export.PDF_MIME, data: out[0] }],
-        png: out[1].map(function (d, i) { return { name: base + (out[1].length > 1 ? '_' + (i + 1) + '쪽' : '') + '.png', type: 'image/png', data: d }; }),
+        png: out[1].map(function (d, i) { return { name: base + (out[1].length > 1 ? '_' + (i + 1) : '') + '.jpg', type: 'image/jpeg', data: d }; }),
         xlsx: [{ name: base + '.xlsx', type: Xlsx.MIME, data: Export.xlsx(vessel, v, list) }]
       };
     });
@@ -818,8 +958,11 @@
       all.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : b.no - a.no; });
       return Promise.all(all.map(function (v) { return DB.passengers(v.id); })).then(function (lists) {
         var thisMonth = monthOf(BMQR.today());
-        var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
-        var lastMonth = d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1);
+        var lastMonth = prevMonth();
+        // 보관 중인 달(확정한 명부가 있는 달) — 아무 달이나 엑셀로
+        var months = [];
+        all.forEach(function (v) { var m = monthOf(v.date); if (v.status === 'confirmed' && months.indexOf(m) < 0) months.push(m); });
+        months.sort().reverse();
         var unsent = all.filter(function (v) { return v.status === 'confirmed' && !v.sharedAt; }).length;
         var html = '', curDate = '';
         all.forEach(function (v, i) {
@@ -836,25 +979,20 @@
               '<button class="btn btn-secondary" type="button" data-month="' + thisMonth + '">이번 달 엑셀</button>' +
               '<button class="btn btn-secondary" type="button" data-month="' + lastMonth + '">지난달 엑셀</button>' +
             '</div>' +
+            (months.length ? '<div class="month-pick"><label for="month-sel" class="month-label">달 고르기</label>' +
+              '<select id="month-sel" class="month-sel">' + months.map(function (m) {
+                var n = all.filter(function (v) { return v.status === 'confirmed' && monthOf(v.date) === m; }).length;
+                return '<option value="' + m + '">' + m.replace('-', '년 ') + '월 (' + n + '건)</option>';
+              }).join('') + '</select>' +
+              '<button class="btn btn-secondary" type="button" id="month-save">이 달 엑셀</button></div>' : '') +
             (all.length ? html : '<p class="empty-big">아직 명부가 없습니다.</p>') +
           '</section>'
         );
         app.querySelectorAll('[data-month]').forEach(function (b) {
-          b.addEventListener('click', function () {
-            var m = b.getAttribute('data-month');
-            var items = all.map(function (v, i) { return { voyage: v, passengers: lists[i] }; })
-              .filter(function (it) { return monthOf(it.voyage.date) === m && it.voyage.status === 'confirmed'; })
-              .sort(function (a, c) { return a.voyage.date < c.voyage.date ? -1 : a.voyage.date > c.voyage.date ? 1 : a.voyage.no - c.voyage.no; });
-            if (!items.length) { toast(m.replace('-', '년 ') + '월에 확정한 명부가 없습니다'); return; }
-            var name = (m + '_전체_' + vessel.name).replace(/[\\\/:*?"<>|\s]+/g, '_') + '.xlsx';
-            Export.save({ name: name, type: Xlsx.MIME, data: Export.monthXlsx(vessel, m, items) })
-              .then(function (how) {
-                if (how === 'cancelled') { toast('저장을 취소했습니다'); return; }
-                if (how === 'saved') { toast(items.length + '개 항차를 엑셀 한 파일로 저장했습니다'); return; }
-                UI.confirm('엑셀 파일을 다운로드 폴더에 저장했습니다', items.length + '개 항차를 "' + name + '" 한 파일로 저장했습니다. ' + PICK_TIP, '알겠습니다', 'primary', false);
-              });
-          });
+          b.addEventListener('click', function () { var m = b.getAttribute('data-month'); saveMonthXlsx(m, monthItems(all, lists, m)); });
         });
+        var ms = document.getElementById('month-save');
+        if (ms) ms.addEventListener('click', function () { var m = document.getElementById('month-sel').value; saveMonthXlsx(m, monthItems(all, lists, m)); });
       });
     });
   }

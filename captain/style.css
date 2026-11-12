@@ -218,3 +218,17 @@
 .nw { white-space: nowrap; }
 .row-pax, .row-crew { gap: 8px; padding-right: 8px; }
 .row-no { width: 18px; }
+
+/* ---------- 폰에 파일로 남기기 ---------- */
+.send-row-4 { grid-template-columns: 1fr 1fr; }
+.send-row-4 .btn { min-height: 56px; font-size: var(--fs-body); padding-left: 4px; padding-right: 4px; }
+.month-pick { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.month-label { grid-column: 1 / -1; font-size: var(--fs-small); font-weight: 600; color: var(--text-muted); }
+.month-sel {
+  min-height: var(--btn-h); padding: 0 12px; background: var(--field-bg); border: 0; border-bottom: 1.5px solid var(--line);
+  border-radius: 0; font-size: var(--fs-body); min-width: 0;
+}
+.month-sel:focus { outline: none; border-bottom-color: var(--primary); box-shadow: inset 0 -1px 0 var(--primary); }
+.month-pick .btn { width: auto; padding: 8px 16px; }
+.month-remind { display: grid; gap: 12px; border: 1px solid var(--border); border-left: 6px solid var(--primary); }
+.voyage-no .badge { margin-top: 4px; }

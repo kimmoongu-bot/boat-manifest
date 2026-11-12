@@ -1,5 +1,7 @@
 /* 선장 앱 저장소 (IndexedDB) — 테이블: vessel, crew, voyage, passenger
- * vessel   : { id:'main', name, number, capacity, deviceName, pinSalt, pinHash }
+ * vessel   : { id:'main', name, number, capacity, deviceName, pinSalt, pinHash, pinLen, retentionMonths, autoSave, monthSaved:{YYYY-MM:시각}, monthAsked:{…} }
+ *            { id:'saveDir', handle(FileSystemDirectoryHandle), name } — 설정에서 고른 저장 폴더(되는 기기만)
+ * voyage 추가: confirmCount·rev(다시 확정하면 파일 이름 _수정N), savedAt·saveName(폰에 파일로 남긴 시각·이름), saveFailed
  * crew     : { id(자동), role:'선장'|'사무장'|'선원', name, birth, sex, addr, phone, license(해기사 면허·선원수첩 번호, 선택), order }
  * voyage   : { id:'YYYY-MM-DD_N', date, no, openedAt, status:'open'|'confirmed', confirmedAt, sharedAt, deviceName, crew:[선장·선원 사본] }
  * passenger: { id(자동), voyageId, key(성명|생년월일|전화), name, birth, sex, addr, phone, emerName, emerPhone,

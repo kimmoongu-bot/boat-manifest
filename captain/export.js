@@ -83,9 +83,15 @@
     };
   }
 
+  // 파일 이름 규칙(모든 내보내기 공통)
+  //   항차: YYYY-MM-DD_선박명_N항차(.pdf/.jpg/.xlsx), 확정을 풀고 다시 확정하면 _수정1, _수정2 …
+  //   월 엑셀: YYYY-MM_선박명_승선명부.xlsx
+  // 선박명의 공백은 지우고 파일 이름에 못 쓰는 문자(\ / : * ? " < > |)는 뺀다
+  function cleanName(t) { return String(t || '').replace(/[\\\/:*?"<>|\s]+/g, ''); }
   function fileBase(vessel, voyage) {
-    return (voyage.date + '_' + voyage.no + '항차_' + vessel.name).replace(/[\\\/:*?"<>|\s]+/g, '_');
+    return voyage.date + '_' + cleanName(vessel.name) + '_' + voyage.no + '항차' + (voyage.rev > 0 ? '_수정' + voyage.rev : '');
   }
+  function monthFileName(vessel, month) { return month + '_' + cleanName(vessel.name) + '_승선명부.xlsx'; }
 
   // ---------- PDF ----------
   var fontBytes = null;
@@ -273,7 +279,7 @@
   function xlsx(vessel, voyage, passengers) {
     return Xlsx.build([sheetFor(vessel, voyage, passengers)]);
   }
-  // 한 달 전체: 맨 앞 "전체" 시트(날짜·항차 칸 추가) + 항차마다 시트 한 장
+  // 한 달 전체: 시트1 "명부"(한 줄에 한 사람, 날짜·항차 칸 추가) + 시트2 "항차별"(항차마다 인원·확정·전송)
   function monthXlsx(vessel, month, list) {
     var all = [];
     list.forEach(function (it) {
@@ -282,12 +288,25 @@
       });
     });
     var first = {
-      name: '전체', title: '낚시어선 승선자명부 — ' + month.replace('-', '년 ') + '월 전체',
+      name: '명부', title: '낚시어선 승선자명부 — ' + month.replace('-', '년 ') + '월 전체',
       info: ['선박명 ' + vessel.name + '   선박번호 ' + vessel.number + '   확정한 항차 ' + list.length + '건, ' + all.length + '줄'],
       columns: [{ header: '출항일', width: 12 }, { header: '항차', width: 7 }].concat(COLUMNS.map(function (c) { return { header: c.header, width: c.xl }; })),
       rows: all
     };
-    return Xlsx.build([first].concat(list.map(function (it) { return sheetFor(vessel, it.voyage, it.passengers); })));
+    var byVoyage = list.map(function (it) {
+      var pax = it.passengers.filter(function (p) { return !p.excluded; }).length, crew = (it.voyage.crew || []).length;
+      return [it.voyage.date, it.voyage.no + '항차', pax, crew, pax + crew,
+        it.voyage.confirmedAt ? dateTime(it.voyage.confirmedAt) : '-',
+        it.voyage.sharedAt ? '보냄 ' + dateTime(it.voyage.sharedAt) : '미전송'];
+    });
+    var second = {
+      name: '항차별', title: '항차별 인원 — ' + month.replace('-', '년 ') + '월',
+      info: ['선박명 ' + vessel.name + '   선박번호 ' + vessel.number + '   정원 ' + vessel.capacity + '명'],
+      columns: [{ header: '날짜', width: 12 }, { header: '항차', width: 7 }, { header: '승객 수', width: 9 }, { header: '선장·선원 수', width: 12 },
+        { header: '합계', width: 8 }, { header: '확정 시각', width: 18 }, { header: '전송 여부', width: 22 }],
+      rows: byVoyage
+    };
+    return Xlsx.build([first, second]);
   }
 
   // ---------- 사진(PNG): 카톡에서 바로 보이게 명부 한 장을 그림으로 ----------
@@ -339,6 +358,19 @@
   function png(vessel, voyage, passengers) {
     return canvases(vessel, voyage, passengers).then(function (cs) { return Promise.all(cs.map(toPng)); });
   }
+  // 사진 보내기·저장용 JPG(흰 바탕이라 PNG 와 똑같이 보이고 파일이 작다)
+  function jpg(vessel, voyage, passengers) {
+    return canvases(vessel, voyage, passengers).then(function (cs) {
+      return Promise.all(cs.map(function (c) {
+        return new Promise(function (resolve, reject) {
+          c.toBlob(function (blob) {
+            if (!blob) return reject(new Error('JPG'));
+            blob.arrayBuffer().then(function (ab) { resolve(new Uint8Array(ab)); }, reject);
+          }, 'image/jpeg', 0.92);
+        });
+      }));
+    });
+  }
 
   // ---------- 공유 / 다운로드 ----------
   // files: [{name, type, data}] → 'shared' | 'downloaded' | 'mixed' | 'cancelled'
@@ -382,7 +414,7 @@
   }
 
   root.Export = {
-    COLUMNS: COLUMNS, manifestRows: manifestRows, summary: summary, fileBase: fileBase, pdf: pdf, png: png, canvases: canvases, xlsx: xlsx, monthXlsx: monthXlsx,
+    COLUMNS: COLUMNS, manifestRows: manifestRows, summary: summary, fileBase: fileBase, monthFileName: monthFileName, cleanName: cleanName, pdf: pdf, png: png, jpg: jpg, download: download, canvases: canvases, xlsx: xlsx, monthXlsx: monthXlsx,
     deliver: deliver, save: save, dateTime: dateTime, hm: hm,
     PDF_MIME: 'application/pdf'
   };
