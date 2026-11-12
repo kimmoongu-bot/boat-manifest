@@ -732,21 +732,30 @@
     if (!CAN_DIR) return Promise.resolve(null);
     return DB.get('vessel', 'saveDir').then(function (r) { return r && r.handle ? r : null; }, function () { return null; });
   }
-  function writeToPhone(file, month) {
+  // 고른 폴더에 쓸 권한을 먼저 확인(필요하면 묻기). 버튼을 누른 직후에 불러야 크롬이 권한 창을 띄워 준다
+  // → 쓸 수 있는 폴더 핸들, 아니면 null(다운로드로)
+  function dirForSave() {
     return getSaveDir().then(function (rec) {
       if (!rec) return null;
       var h = rec.handle, opt = { mode: 'readwrite' };
       return Promise.resolve(h.queryPermission ? h.queryPermission(opt) : 'granted').then(function (p) {
         return p === 'granted' ? p : (h.requestPermission ? h.requestPermission(opt) : 'denied');
-      }).then(function (p) {
-        if (p !== 'granted') return null;
-        return h.getDirectoryHandle(month, { create: true })
-          .then(function (sub) { return sub.getFileHandle(file.name, { create: true }); })
-          .then(function (fh) { return fh.createWritable(); })
-          .then(function (w) { return w.write(file).then(function () { return w.close(); }); })
-          .then(function () { return { how: 'folder', where: h.name + '/' + month }; });
-      }).catch(function (e) { console.warn('폴더 저장 실패 → 다운로드', e); return null; });
-    }).then(function (r) {
+      }).then(function (p) { return p === 'granted' ? h : null; });
+    }).catch(function (e) { console.warn('폴더 권한 없음 → 다운로드', e); return null; });
+  }
+  function writeToPhone(file, month, dir) {
+    var sub = null;
+    var go = !dir ? Promise.resolve(null) : dir.getDirectoryHandle(month, { create: true })
+      .then(function (d) { sub = d; return sub.getFileHandle(file.name, { create: true }); })
+      .then(function (fh) { return fh.createWritable(); })
+      .then(function (w) { return w.write(file).then(function () { return w.close(); }); })
+      .then(function () { return { how: 'folder', where: dir.name + '/' + month }; })
+      .catch(function (e) {
+        // 안드로이드에서 긴 한글 이름은 빈 파일만 생기고 실패할 때가 있음 → 빈 파일 지우고 다운로드로
+        console.warn('폴더 저장 실패 → 다운로드', e);
+        return (sub ? sub.removeEntry(file.name).catch(function () {}) : Promise.resolve()).then(function () { return null; });
+      });
+    return go.then(function (r) {
       if (r) return r;
       Export.download(file);
       return { how: 'download', where: '다운로드' };
@@ -754,11 +763,13 @@
   }
   // 항차 PDF 를 폰에 남기고 항차에 기록(savedAt·saveName / 실패면 saveFailed). 실패해도 확정은 그대로
   function savePdfToPhone(v, list) {
-    return (list ? Promise.resolve(list) : DB.passengers(v.id)).then(function (l) { return Export.pdf(vessel, v, l); }).then(function (data) {
+    var dir = null;
+    return dirForSave().then(function (d) { dir = d; return list || DB.passengers(v.id); })
+      .then(function (l) { return Export.pdf(vessel, v, l); }).then(function (data) {
       var name = Export.fileBase(vessel, v) + '.pdf';
-      return writeToPhone(new File([data], name, { type: Export.PDF_MIME }), v.date.slice(0, 7)).then(function (r) {
+      return writeToPhone(new File([data], name, { type: Export.PDF_MIME }), v.date.slice(0, 7), dir).then(function (r) {
         v.savedAt = Date.now(); v.saveName = name; v.saveFailed = false;
-        return DB.put('voyage', v).then(function () { toast('폰에 저장했습니다 — ' + name, false, 3500); return r; });
+        return DB.put('voyage', v).then(function () { toast('폰에 저장했습니다 — ' + (r.how === 'folder' ? r.where : '다운로드') + '/' + name, false, 3500); return r; });
       });
     }).catch(function (e) {
       console.error(e);
