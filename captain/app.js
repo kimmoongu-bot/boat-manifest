@@ -109,19 +109,31 @@
     return Array.prototype.map.call(a, function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('');
   }
 
+  // PIN 자릿수: 새로 정하는 PIN 은 4자리. pinLen 이 없는 예전 PIN(4~6자리)은 칸 6개, 자동 열기 안 함
+  function pinLen() { return vessel && vessel.pinHash && !vessel.pinLen ? 6 : 4; }
+  // 4자리 PIN 이면 다 넣는 순간 바로 확인
+  function autoPin(input, onFull) {
+    input.addEventListener('input', function () {
+      input.value = input.value.replace(/\D/g, '').slice(0, pinLen());
+      UI.pinSync(input);
+      if (vessel.pinLen === 4 && input.value.length === 4) onFull();
+    });
+  }
+
   function renderLock() {
     view(
       '<section class="screen lock">' +
         '<h1>' + esc(vessel.name) + '</h1>' +
         '<p class="lead">PIN을 넣어야 승선명부를 볼 수 있습니다.</p>' +
         '<form id="lockf" class="form" novalidate>' +
-          PersonForm.field('pin', 'PIN', UI.pinInput('f-pin', 'pin', 6, true)) +
+          PersonForm.field('pin', 'PIN', UI.pinInput('f-pin', 'pin', pinLen(), true)) +
           '<button class="btn btn-primary" type="submit">열기</button>' +
         '</form>' +
       '</section>'
     );
     var f = document.getElementById('lockf');
     document.getElementById('f-pin').focus();
+    autoPin(f.elements.pin, function () { PersonForm.setErr('pin', ''); f.requestSubmit(); });
     f.addEventListener('submit', function (e) {
       e.preventDefault();
       hashPin(f.elements.pin.value, vessel.pinSalt).then(function (h) {
@@ -275,11 +287,11 @@
       '<section class="screen">' +
         '<a class="back" href="#/settings">← 설정</a>' +
         '<h1>' + (has ? 'PIN 바꾸기' : 'PIN 켜기') + '</h1>' +
-        '<p class="lead">숫자 4~6자리. 잊어버리면 앱 저장 공간을 지워야 하니 꼭 기억해 두세요.</p>' +
+        '<p class="lead">숫자 4자리. 잊어버리면 앱 저장 공간을 지워야 하니 꼭 기억해 두세요.</p>' +
         '<form id="pinf" class="form" novalidate>' +
-          (has ? PersonForm.field('old', '지금 PIN', UI.pinInput('f-old', 'old', 6)) : '') +
-          PersonForm.field('pin1', '새 PIN', UI.pinInput('f-pin1', 'pin1', 6)) +
-          PersonForm.field('pin2', '새 PIN 한 번 더', UI.pinInput('f-pin2', 'pin2', 6)) +
+          (has ? PersonForm.field('old', '지금 PIN', UI.pinInput('f-old', 'old', pinLen())) : '') +
+          PersonForm.field('pin1', '새 PIN', UI.pinInput('f-pin1', 'pin1', 4)) +
+          PersonForm.field('pin2', '새 PIN 한 번 더', UI.pinInput('f-pin2', 'pin2', 4)) +
           '<button class="btn btn-primary" type="submit">PIN 저장</button>' +
         '</form>' +
         (has ? '<div class="danger-zone"><button class="btn btn-danger" type="button" id="pin-off">PIN 끄기</button>' +
@@ -302,12 +314,12 @@
       checkOld().then(function (ok) {
         if (!ok) return;
         var errs = {};
-        if (!/^\d{4,6}$/.test(p1)) errs.pin1 = '숫자 4~6자리로 넣어 주세요';
+        if (!/^\d{4}$/.test(p1)) errs.pin1 = '숫자 4자리로 넣어 주세요';
         else if (p1 !== p2) errs.pin2 = '두 번 넣은 PIN이 다릅니다';
         if (PersonForm.showErrors(f, errs)) return;
         var salt = newSalt();
         return hashPin(p1, salt).then(function (h) {
-          vessel.pinSalt = salt; vessel.pinHash = h;
+          vessel.pinSalt = salt; vessel.pinHash = h; vessel.pinLen = 4;
           return DB.put('vessel', vessel);
         }).then(function () { unlocked = true; toast('PIN을 저장했습니다'); go('#/settings'); });
       });
@@ -316,7 +328,7 @@
     if (off) off.addEventListener('click', function () {
       checkOld().then(function (ok) {
         if (!ok) { f.elements.old.focus(); return; }
-        delete vessel.pinSalt; delete vessel.pinHash;
+        delete vessel.pinSalt; delete vessel.pinHash; delete vessel.pinLen;
         DB.put('vessel', vessel).then(function () { toast('PIN을 껐습니다'); go('#/settings'); });
       });
     });
@@ -695,20 +707,35 @@
     }
     var dlg = document.getElementById('pin-dialog'), input = document.getElementById('pin-dialog-input'), err = document.getElementById('pin-dialog-err');
     document.getElementById('pin-dialog-title').textContent = title;
+    // 칸 수를 PIN 자릿수에 맞춘다
+    var n = pinLen(), box = input.closest('.pin-boxes');
+    box.style.setProperty('--pin-n', n);
+    input.maxLength = n;
+    box.querySelector('.pin-cells').innerHTML = new Array(n + 1).join('<i></i>');
     input.value = ''; err.textContent = ''; UI.pinSync(input);
     return new Promise(function (resolve) {
-      function done(v) { dlg.removeEventListener('click', onClick); if (dlg.open) dlg.close(); resolve(v); }
+      function done(v) { dlg.removeEventListener('click', onClick); input.removeEventListener('input', onInput); if (dlg.open) dlg.close(); resolve(v); }
+      function onInput() {
+        input.value = input.value.replace(/\D/g, '').slice(0, n);
+        err.textContent = '';
+        UI.pinSync(input);
+        if (vessel.pinLen === 4 && input.value.length === 4) check();
+      }
       function onClick(e) {
         var b = e.target.closest('button');
         if (!b) return;
         e.preventDefault();
         if (b.value !== 'ok') return done(false);
+        check();
+      }
+      function check() {
         hashPin(input.value, vessel.pinSalt).then(function (h) {
           if (h === vessel.pinHash) done(true);
           else { err.textContent = '⚠ PIN이 맞지 않습니다'; input.value = ''; input.focus(); UI.pinSync(input); }
         });
       }
       dlg.addEventListener('click', onClick);
+      input.addEventListener('input', onInput);
       dlg.showModal();
       input.focus();
     });
